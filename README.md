@@ -1,2 +1,2 @@
 # Name2Chat
-WoW Addon for adding Name to Chat
+WoW Addon for adding Name
