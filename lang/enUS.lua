@@ -6,7 +6,6 @@ debug = true
 
 local L = LibStub("AceLocale-3.0"):NewLocale("Name2Chat", "enUS", true, debug)
 
-L = L or {}
 L["channel"] = "Channel"
 L["channel_desc"] = "Add name to chat messages in this custom channel."
 L["config"] = "Configuration"
