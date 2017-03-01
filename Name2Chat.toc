@@ -1,4 +1,4 @@
-## Interface: 70100
+# ## Interface: 70100
 ## Title: Name2Chat
 ## Notes: Adds your name to chat messages
 ## Author: @project-author@ 
@@ -6,6 +6,7 @@
 ## SavedVariables: Name2ChatDB
 ## OptionalDeps: Ace3
 
-lang/locale.xml
 embeds.xml
+lang/locale.xml
+
 Name2Chat.lua
