@@ -119,8 +119,8 @@ local SlashOptions = {
 }
 
 local SlashCmds = {
-  "nc",
-  "NameChat",
+  "n2c",
+  "Name2Chat",
 };
 
 local character_name
