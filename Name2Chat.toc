@@ -6,7 +6,9 @@
 ## SavedVariables: Name2ChatDB
 ## OptionalDeps: Ace3
 
+#@no-lib-strip@
 embeds.xml
-lang/locale.xml
+#@end-no-lib-strip@
 
+lang/locale.xml
 Name2Chat.lua

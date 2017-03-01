@@ -1,5 +1,5 @@
 package-as: Name2Chat
-enable-nolib-creation: no
+enable-nolib-creation: yes
 
 externals:
     libs/CallbackHandler-1.0: 
