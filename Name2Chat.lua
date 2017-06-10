@@ -26,7 +26,7 @@ local Options = {
 			name = L["name"],
 			desc = L["name_desc"],
 		},
-		enable = {	
+		enable = {
 			order = 2,
 			type = "toggle",
 			name = L["enable"],
@@ -90,7 +90,6 @@ local Defaults = {
 	},
 }
 
-
 local SlashOptions = {
 	type = "group",
 	handler = Name2Chat,
@@ -135,7 +134,7 @@ function Name2Chat:OnInitialize()
 
 	-- Set up our config options.
 	local profiles = LibStub("AceDBOptions-3.0"):GetOptionsTable(self.db)
-  
+
 	local config = LibStub("AceConfig-3.0")
 	config:RegisterOptionsTable("Name2Chat", SlashOptions, SlashCmds)
 
@@ -148,13 +147,13 @@ function Name2Chat:OnInitialize()
 		main = dialog:AddToBlizOptions(	"Name2Chat Options", "Name2Chat"),
 		profiles = dialog:AddToBlizOptions(	"Name2Chat Profiles", "Profiles", "Name2Chat");
 	}
-	
+
 	-- Hook SendChatMessage function
 	self:RawHook("SendChatMessage", true)
-	
+
 	-- get current character name
 	character_name, _ = UnitName("player")
-	
+
 	self:Safe_Print(L["Loaded"])
 end
 
@@ -168,7 +167,7 @@ function Name2Chat:SendChatMessage(msg, chatType, language, channel)
 			if (not self.db.profile.hideOnMatchingCharName) or (self.db.profile.name ~= character_name) then
 
 				if  (self.db.profile.guild and (chatType == "GUILD" or chatType == "OFFICER")) or
-					(self.db.profile.raid and chatType == "RAID") or 
+					(self.db.profile.raid and chatType == "RAID") or
 					(self.db.profile.party and chatType == "PARTY") or
 					(self.db.profile.instance_chat and chatType == "INSTANCE_CHAT")
 				then
@@ -180,11 +179,11 @@ function Name2Chat:SendChatMessage(msg, chatType, language, channel)
 						msg = "(" .. self.db.profile.name .. "): " .. msg
 					end
 				end
-				
+
 			end
 		end
 	end
-	
+
 	-- Call original function
 	self.hooks.SendChatMessage(msg, chatType, language, channel)
 end
@@ -198,4 +197,3 @@ function Name2Chat:Safe_Print(msg)
 		self:Print(msg)
 	end
 end
-
