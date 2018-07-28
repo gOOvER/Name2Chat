@@ -1,7 +1,7 @@
-## Interface: 70300
+## Interface: 80000
 ## Title: Name2Chat
 ## Notes: Adds your name to chat messages
-## Author: @project-author@ 
+## Author: @project-author@
 ## Version: @project-version@
 ## SavedVariables: Name2ChatDB
 ## OptionalDeps: Ace3
