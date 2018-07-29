@@ -171,12 +171,12 @@ function Name2Chat:SendChatMessage(msg, chatType, language, channel)
 					(self.db.profile.party and chatType == "PARTY") or
 					(self.db.profile.instance_chat and chatType == "INSTANCE_CHAT")
 				then
-					msg = "|cFF0000FF ( |r |cFFFF0000" .. self.db.profile.name .. "|r |cFF0000FF ): |r" .. msg
+					msg = "(" .. self.db.profile.name .. "): " .. msg
 
 				elseif self.db.profile.channel and chatType == "CHANNEL" then
-					local id, chname = GetChannelName(channel)
+					--local id, chname = GetChannelName(channel)
 					--if strupper(self.db.profile.channel) == strupper(chname) then
-						msg = "|cFF0000FF ( |r |cFFFF0000" .. self.db.profile.name .. "|r |cFF0000FF ): |r " .. msg
+						msg = "(" .. self.db.profile.name .. "): " .. msg
 					--end
 				end
 
