@@ -73,6 +73,12 @@ local Options = {
 			type = "toggle",
 			name = L["hideOnMatchingCharName"],
 			desc = L["hideOnMatchingCharName_desc"],
+		},
+		ignoreExclamationMark = {
+			order = 9,
+			type = "toggle",
+			name = L["ignoreExclamationMark"],
+			desc = L["ignoreExclamationMark_desc"],
 		}
 	},
 }
@@ -87,6 +93,7 @@ local Defaults = {
 		debug = false,
 		channel = nil,
 		hideOnMatchingCharName = false,
+		ignoreExclamationMark = true,
 	},
 }
 
@@ -172,7 +179,7 @@ function Name2Chat:SendChatMessage(msg, chatType, language, channel)
 					(self.db.profile.instance_chat and chatType == "INSTANCE_CHAT")
 				then
 					--TODO Learn how to do a not in LUA
-					if(string.starts(msg,'!keys'))
+					if(string.starts(msg,'!keys') and self.db.profile.ignoreExclamationMark)
 					then
 						msg = msg
 					else
