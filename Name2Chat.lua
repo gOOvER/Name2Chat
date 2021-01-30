@@ -73,6 +73,12 @@ local Options = {
 			type = "toggle",
 			name = L["hideOnMatchingCharName"],
 			desc = L["hideOnMatchingCharName_desc"],
+		},
+		ignoreExclamationMark = {
+			order = 9,
+			type = "toggle",
+			name = L["ignoreExclamationMark"],
+			desc = L["ignoreExclamationMark_desc"],
 		}
 	},
 }
@@ -87,6 +93,7 @@ local Defaults = {
 		debug = false,
 		channel = nil,
 		hideOnMatchingCharName = false,
+		ignoreExclamationMark = true,
 	},
 }
 
@@ -171,7 +178,13 @@ function Name2Chat:SendChatMessage(msg, chatType, language, channel)
 					(self.db.profile.party and chatType == "PARTY") or
 					(self.db.profile.instance_chat and chatType == "INSTANCE_CHAT")
 				then
-					msg = "(" .. self.db.profile.name .. "): " .. msg
+					--TODO Learn how to do a not in LUA
+					if(string.starts(msg,'!keys') and self.db.profile.ignoreExclamationMark)
+					then
+						msg = msg
+					else
+						msg = "(" .. self.db.profile.name .. "): " .. msg
+					end
 
 				elseif self.db.profile.channel and chatType == "CHANNEL" then
 					--local id, chname = GetChannelName(channel)
@@ -197,3 +210,7 @@ function Name2Chat:Safe_Print(msg)
 		self:Print(msg)
 	end
 end
+
+function string.starts(String,Start)
+	return string.sub(String,1,string.len(Start))==Start
+ end
