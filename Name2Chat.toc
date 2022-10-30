@@ -1,10 +1,15 @@
-## Interface: 90205
+## Interface: 100000
 ## Title: Name2Chat
 ## Notes: Adds your name to chat messages
 ## Author: @project-author@
 ## Version: @project-version@
 ## SavedVariables: Name2ChatDB
 ## OptionalDeps: Ace3
+## X-Website: https://www.goover.de
+## X-Email: info@goover.de
+## X-Curse-Project-ID: 261826
+## X-WoWI-ID: 24357
+## X-Wago-ID: Qb6mWqGP
 
 #@no-lib-strip@
 embeds.xml
