@@ -14,9 +14,6 @@ externals:
     libs/AceConsole-3.0:
         url: https://repos.wowace.com/wow/ace3/trunk/AceConsole-3.0
         tag: latest
-    libs/AceDBOptions-3.0:
-        url: https://repos.wowace.com/wow/ace3/trunk/AceDBOptions-3.0
-        tag: latest
     libs/AceGUI-3.0:
         url: https://repos.wowace.com/wow/ace3/trunk/AceGUI-3.0
         tag: latest
