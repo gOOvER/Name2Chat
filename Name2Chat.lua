@@ -183,13 +183,13 @@ function Name2Chat:SendChatMessage(msg, chatType, language, channel)
 					then
 						msg = msg
 					else
-						msg = "(" .. self.db.profile.name .. ") : " .. msg
+						msg = "(" .. self.db.profile.name ..") : " .. msg
 					end
 
 				elseif self.db.profile.channel and chatType == "CHANNEL" then
 					--local id, chname = GetChannelName(channel)
 					--if strupper(self.db.profile.channel) == strupper(chname) then
-						msg = "(" .. self.db.profile.name .. ") : " .. msg
+						msg = "(" .. self.db.profile.name ..") : " .. msg
 					--end
 				end
 
