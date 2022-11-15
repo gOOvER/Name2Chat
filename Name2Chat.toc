@@ -1,4 +1,4 @@
-## Interface: 100000
+## Interface: 100002
 ## Title: Name2Chat
 ## Notes: Adds your name to chat messages
 ## Author: @project-author@
