@@ -1,5 +1,8 @@
 # Name2Chat Changelog
 
+### 3.4.1 (19.11.2022)
+- add AceDB-3.0
+
 ### 3.4.0 (15.11.2022)
  - updated toc for prepatch 2
 
