@@ -11,6 +11,9 @@ externals:
     libs/AceEvent-3.0:
         url: https://repos.wowace.com/wow/ace3/trunk/AceEvent-3.0
         tag: latest
+    libs/AceDB-3.0:
+        url: https://repos.wowace.com/wow/ace3/trunk/AceDB-3.0
+        tag: latest    
     libs/AceDBOptions-3.0:
         url: https://repos.wowace.com/wow/ace3/trunk/AceDBOptions-3.0
         tag: latest
