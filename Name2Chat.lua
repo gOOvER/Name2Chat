@@ -75,7 +75,7 @@ local Options = {
 			desc = L["hideOnMatchingCharName_desc"],
 		},
 		ignoreExclamationMark = {
-			order = 9,
+			order = 10,
 			type = "toggle",
 			name = L["ignoreExclamationMark"],
 			desc = L["ignoreExclamationMark_desc"],
@@ -186,11 +186,12 @@ function Name2Chat:SendChatMessage(msg, chatType, language, channel)
 						msg = "(" .. self.db.profile.name .."): " .. msg
 					end
 
-				elseif self.db.profile.channel and chatType == "CHANNEL" then
-					--local id, chname = GetChannelName(channel)
-					--if strupper(self.db.profile.channel) == strupper(chname) then
+				elseif (self.db.profile.channel ~= "") and chatType == "CHANNEL" then
+
+					local id, chname = GetChannelName(channel)
+					if strupper(self.db.profile.channel) == strupper(chname) then
 						msg = "(" .. self.db.profile.name .."): " .. msg
-					--end
+					end
 				end
 
 			end
