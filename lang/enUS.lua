@@ -1,7 +1,7 @@
-﻿local debug = false
+local debug = false
 --[===[@debug@
 debug = true
---@end-debug@]===]
+--@end-debug@]==]]===]
 
 local L = LibStub("AceLocale-3.0"):NewLocale("Name2Chat", "enUS", true, debug)
 
@@ -26,5 +26,13 @@ L["party"] = "Party"
 L["party_desc"] = "Add name to party chat messages (/p)."
 L["raid"] = "Raid"
 L["raid_desc"] = "Add name to raid chat messages (/raid)."
-L["ignoreExclamationMark"] = "Ignore adding name to chat if the message begings with !keys"
+L["ignoreExclamationMark"] = "Ignore adding name to chat if the message begins with !keys"
 L["ignoreExclamationMark_desc"] = "If the message begins with !keys, the name will be ignored so Astral Keys can work correctly."
+L["bracketStyle"] = "Bracket style"
+L["bracketStyle_desc"] = "Choose the bracket style around the nickname."
+L["bracketStyle_curly"] = "{curly}"
+L["bracketStyle_square"] = "[square]"
+L["bracketStyle_round"] = "(round)"
+L["bracketStyle_angle"] = "<angle>"
+L["ignoreLeadingSymbols"] = "Ignore leading symbols"
+L["ignoreLeadingSymbols_desc"] = "If a message starts (after spaces) with any of these characters, it will not be prefixed. Example: /!#@?."

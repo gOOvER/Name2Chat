@@ -79,7 +79,25 @@ local Options = {
 			type = "toggle",
 			name = L["ignoreExclamationMark"],
 			desc = L["ignoreExclamationMark_desc"],
-		}
+		},
+                bracketStyle = {
+                        order = 11,
+                        type = "select",
+                        name = L["bracketStyle"],
+                        desc = L["bracketStyle_desc"],
+                        values = {
+                                curly = L["bracketStyle_curly"],
+                                square = L["bracketStyle_square"],
+                                round = L["bracketStyle_round"],
+                                angle = L["bracketStyle_angle"],
+                        },
+                },
+                ignoreLeadingSymbols = {
+                        order = 12,
+                        type = "input",
+                        name = L["ignoreLeadingSymbols"],
+                        desc = L["ignoreLeadingSymbols_desc"],
+                },
 	},
 }
 
@@ -94,6 +112,8 @@ local Defaults = {
 		channel = nil,
 		hideOnMatchingCharName = false,
 		ignoreExclamationMark = true,
+		bracketStyle = "square",
+		ignoreLeadingSymbols = "/!#@?.",
 	},
 }
 
@@ -118,7 +138,11 @@ local SlashOptions = {
 			name = L["config"],
 			desc = L["config_desc"],
 			func = function()
-				InterfaceOptionsFrame_OpenToCategory(Name2Chat.optionFrames.main)
+				if Settings and Settings.OpenToCategory then
+					Settings.OpenToCategory("Name2Chat")
+				elseif InterfaceOptionsFrame_OpenToCategory then
+					InterfaceOptionsFrame_OpenToCategory(Name2Chat.optionFrames.main)
+				end
 			end,
 		},
 	},
@@ -155,8 +179,17 @@ function Name2Chat:OnInitialize()
 		profiles = dialog:AddToBlizOptions(	"Name2Chat Profiles", "Profiles", "Name2Chat");
 	}
 
-	-- Hook SendChatMessage function
-	self:RawHook("SendChatMessage", true)
+	-- Hook SendChatMessage function (global fallback)
+	self:SecureHook("SendChatMessage", "SendChatMessageGlobal")
+	-- Hook C_ChatInfo.SendChatMessage (Retail path)
+	if C_ChatInfo and type(C_ChatInfo.SendChatMessage) == "function" then
+		self:SecureHook(C_ChatInfo, "SendChatMessage", "SendChatMessageC")
+	end
+	-- Do NOT raw-hook ChatEdit_* (secure in 11.x). We'll hook edit boxes directly instead.
+
+	if self.db.profile.debug then
+		self:Print("Name2Chat: Hooks installed (SendChatMessage, C_ChatInfo.SendChatMessage)")
+	end
 
 	-- get current character name
 	character_name, _ = UnitName("player")
@@ -164,42 +197,210 @@ function Name2Chat:OnInitialize()
 	self:Safe_Print(L["Loaded"])
 end
 
+function Name2Chat:OnEnable()
+	-- Attach to chat edit boxes and reattach when chat windows change
+	self:AttachEditBoxHooks()
+	self:RegisterEvent("UPDATE_CHAT_WINDOWS", "AttachEditBoxHooks")
+end
+
 --------------------------------
 ---      Event Handlers      ---
 --------------------------------
 
-function Name2Chat:SendChatMessage(msg, chatType, language, channel)
-	if self.db.profile.enable then
-		if self.db.profile.name and self.db.profile.name ~= "" then
-			if (not self.db.profile.hideOnMatchingCharName) or (self.db.profile.name ~= character_name) then
+-- Helpers to build the nickname prefix according to selected bracket style
+function Name2Chat:GetBracketPair()
+	local style = self.db and self.db.profile and self.db.profile.bracketStyle or "square"
+	if style == "curly" then return "{", "}" end
+	if style == "round" then return "(", ")" end
+	if style == "angle" then return "<", ">" end
+	return "[", "]"
+end
 
-				if  (self.db.profile.guild and (chatType == "GUILD" or chatType == "OFFICER")) or
-					(self.db.profile.raid and chatType == "RAID") or
-					(self.db.profile.party and chatType == "PARTY") or
-					(self.db.profile.instance_chat and chatType == "INSTANCE_CHAT")
-				then
-					--TODO Learn how to do a not in LUA
-					if(string.starts(msg,'!keys') and self.db.profile.ignoreExclamationMark)
-					then
-						msg = msg
-					else
-						msg = "(" .. self.db.profile.name .."): " .. msg
-					end
+function Name2Chat:GetPrefix()
+    if not (self.db and self.db.profile and self.db.profile.name and self.db.profile.name ~= "") then return nil end
+    local l, r = self:GetBracketPair()
+    return l .. self.db.profile.name .. r .. ": "
+end
 
-				elseif (self.db.profile.channel ~= "") and chatType == "CHANNEL" then
+-- Helper: check if already prefixed
+local function AlreadyPrefixed(text)
+    if type(text) ~= "string" then return true end
+    local prefix = Name2Chat:GetPrefix()
+    if not prefix then return true end
+    return string.sub(text, 1, #prefix) == prefix
+end
 
-					local id, chname = GetChannelName(channel)
-					if strupper(self.db.profile.channel) == strupper(chname) then
-						msg = "(" .. self.db.profile.name .."): " .. msg
-					end
-				end
+-- Helper: check if str starts with a prefix
+local function starts(str, prefix)
+    return string.sub(str, 1, string.len(prefix)) == prefix
+end
 
-			end
+ -- Helper: should prefix based on chat type and settings
+ function Name2Chat:ShouldPrefixForChatType(chatType)
+     if not chatType then return false end
+     if (self.db.profile.guild and (chatType == "GUILD" or chatType == "OFFICER")) then return true end
+     if (self.db.profile.raid and (chatType == "RAID" or chatType == "RAID_LEADER" or chatType == "RAID_WARNING")) then return true end
+     if (self.db.profile.party and (chatType == "PARTY" or chatType == "PARTY_LEADER")) then return true end
+     if (self.db.profile.instance_chat and (chatType == "INSTANCE_CHAT" or chatType == "INSTANCE_CHAT_LEADER")) then return true end
+     return false
+ end
+
+ -- Helper: build prefixed message if conditions are met
+ function Name2Chat:BuildPrefixedMessageIfNeeded(text, chatType, channelRef)
+     if not self.db.profile.enable then return text end
+     if not (self.db.profile.name and self.db.profile.name ~= "") then return text end
+     if (self.db.profile.hideOnMatchingCharName and self.db.profile.name == character_name) then return text end
+     -- Never modify slash commands (e.g., /reload, /p, /g)
+     if type(text) == "string" and string.match(text, "^%s*/") then return text end
+    -- Ignore other common command symbols the user configures
+    if type(text) == "string" and self.db.profile.ignoreLeadingSymbols and self.db.profile.ignoreLeadingSymbols ~= "" then
+        local first = string.match(text, "^%s*(.)")
+        if first and string.find(self.db.profile.ignoreLeadingSymbols, first, 1, true) then
+            return text
+        end
+    end
+    if self.db.profile.ignoreExclamationMark and type(text) == "string" and starts(text, '!keys') then return text end
+    if AlreadyPrefixed(text) then return text end
+
+     local prefix = self:GetPrefix()
+     if not prefix then return text end
+ 
+     -- Group/instance/guild/raid path
+     if self:ShouldPrefixForChatType(chatType) then
+        return prefix .. text
+     end
+ 
+     -- Channel path
+     if (self.db.profile.channel and self.db.profile.channel ~= "" and chatType == "CHANNEL") then
+         local _, chname = GetChannelName(channelRef)
+         if chname and strupper(self.db.profile.channel) == strupper(chname) then
+            return prefix .. text
+         end
+     end
+ 
+     return text
+ end
+
+-- Global SendChatMessage hook (classic and fallback)
+function Name2Chat:SendChatMessageGlobal(msg, chatType, language, channel, ...)
+    -- SecureHook: cannot modify arguments or call original here. Rely on ChatEdit_* hooks for user-typed messages.
+    -- Optionally debug what would be sent:
+    if self.db and self.db.profile and self.db.profile.debug then
+        local would = self:BuildPrefixedMessageIfNeeded(msg, chatType, channel)
+        if would ~= msg then
+            self:Safe_Print("Would prefix outgoing message via SendChatMessage")
+        end
+    end
+end
+
+-- Retail C_ChatInfo.SendChatMessage hook
+function Name2Chat:SendChatMessageC(msg, chatType, language, channel, target, ...)
+    -- SecureHook: cannot modify arguments or call original here. Rely on ChatEdit_* hooks for user-typed messages.
+    if self.db and self.db.profile and self.db.profile.debug then
+        local would = self:BuildPrefixedMessageIfNeeded(msg, chatType, channel)
+        if would ~= msg then
+            self:Safe_Print("Would prefix outgoing message via C_ChatInfo.SendChatMessage")
+        end
+    end
+end
+
+-- Normalize chat type strings from edit boxes to the standard forms.
+-- This helper converts special chat types (e.g. "BN_WHISPER" or leader channels)
+-- to the base forms expected by SendChatMessage.
+local function NormalizeChatType(chatType)
+        if chatType == "BN_WHISPER" then
+                return "WHISPER"
+        elseif chatType == "INSTANCE" or chatType == "INSTANCE_LEADER" then
+                return "INSTANCE_CHAT"
+        elseif chatType == "PARTY_LEADER" then
+                return "PARTY"
+        elseif chatType == "RAID_LEADER" then
+                return "RAID"
+        end
+        return chatType
+end
+
+-- Intercept text before it is sent from the chat edit box (Retail path)
+function Name2Chat:ChatEdit_SendText(editBox, addHistory, ...)
+	local text = editBox:GetText()
+	local chatType = editBox:GetAttribute("chatType")
+	local channelTarget = editBox:GetAttribute("channelTarget")
+
+	if self.db.profile.debug then
+		self:Print("ChatEdit_SendText: chatType=" .. tostring(chatType) .. ", channelTarget=" .. tostring(channelTarget) .. ", text=" .. tostring(text))
+	end
+
+        chatType = NormalizeChatType(chatType)
+
+	if type(text) == "string" then
+		local newText = self:BuildPrefixedMessageIfNeeded(text, chatType, channelTarget)
+		if newText ~= text then
+			if self.db.profile.debug then self:Print("Prefix applied in ChatEdit_SendText") end
+			editBox:SetText(newText)
 		end
 	end
 
-	-- Call original function
-	self.hooks.SendChatMessage(msg, chatType, language, channel)
+	return self.hooks.ChatEdit_SendText(editBox, addHistory, ...)
+end
+
+-- Extra safety: hook when pressing Enter (some UI paths)
+function Name2Chat:ChatEdit_OnEnterPressedHook(editBox, ...)
+	local text = editBox:GetText()
+	local chatType = editBox:GetAttribute("chatType")
+	local channelTarget = editBox:GetAttribute("channelTarget")
+
+	if self.db.profile.debug then
+		self:Print("OnEnterPressed: chatType=" .. tostring(chatType) .. ", channelTarget=" .. tostring(channelTarget))
+	end
+
+        chatType = NormalizeChatType(chatType)
+
+	if type(text) == "string" then
+		local newText = self:BuildPrefixedMessageIfNeeded(text, chatType, channelTarget)
+		if newText ~= text then
+			if self.db.profile.debug then self:Print("Prefix applied in OnEnterPressed") end
+			editBox:SetText(newText)
+		end
+	end
+	return self.hooks.ChatEdit_OnEnterPressed(editBox, ...)
+end
+
+-- Attach hooks to all chat edit boxes
+function Name2Chat:AttachEditBoxHooks()
+	local function resolveEditBox(cf, i)
+		if not cf then return _G["ChatFrame" .. i .. "EditBox"] end
+		if cf.editBox then return cf.editBox end
+		if cf.GetEditBox then return cf:GetEditBox() end
+		return _G["ChatFrame" .. i .. "EditBox"]
+	end
+	for i = 1, NUM_CHAT_WINDOWS do
+		local cf = _G["ChatFrame" .. i]
+		local edit = resolveEditBox(cf, i)
+		if edit and not self:IsHooked(edit, "OnEnterPressed") then
+			-- Use RawHookScript so we can modify text before send
+			self:RawHookScript(edit, "OnEnterPressed", "EditBox_OnEnterPressed")
+		end
+	end
+	if self.db and self.db.profile and self.db.profile.debug then
+		self:Print("EditBox hooks attached")
+	end
+end
+
+function Name2Chat:EditBox_OnEnterPressed(editBox)
+	local text = editBox:GetText()
+	local chatType = editBox:GetAttribute("chatType")
+	local channelTarget = editBox:GetAttribute("channelTarget")
+        chatType = NormalizeChatType(chatType)
+
+	local newText = self:BuildPrefixedMessageIfNeeded(text, chatType, channelTarget)
+	if type(newText) == "string" and newText ~= text then
+		editBox:SetText(newText)
+		if self.db and self.db.profile and self.db.profile.debug then
+			self:Print("Prefix applied in EditBox_OnEnterPressed")
+		end
+	end
+	-- Call original script
+	return self.hooks[editBox].OnEnterPressed(editBox)
 end
 
 ---------------------------
@@ -211,7 +412,3 @@ function Name2Chat:Safe_Print(msg)
 		self:Print(msg)
 	end
 end
-
-function string.starts(String,Start)
-	return string.sub(String,1,string.len(Start))==Start
- end

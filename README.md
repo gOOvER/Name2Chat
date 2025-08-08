@@ -1,6 +1,6 @@
 # Name2Chat
 
-This is the Fork of the Addon Incognito, because to Addon was not updated for a long Time. I'd tryed to contact the former Author, but never get an answer.
+This is the Fork of the Addon Incognito, because to Addon was not updated for a long Time. I'd tried to contact the former Author, but never get an answer.
  
 Name2Chat adds you name in front of your chat messages. Can be enabled for guild (and officer), party and raid chat messages. 
  
