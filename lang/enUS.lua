@@ -1,7 +1,7 @@
 local debug = false
 --[===[@debug@
 debug = true
---@end-debug@]==]]===]
+--@end-debug@]===]
 
 local L = LibStub("AceLocale-3.0"):NewLocale("Name2Chat", "enUS", true, debug)
 
