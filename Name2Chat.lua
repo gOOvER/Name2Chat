@@ -230,11 +230,6 @@ local function AlreadyPrefixed(text)
     return string.sub(text, 1, #prefix) == prefix
 end
 
--- Helper: check if str starts with a prefix
-local function starts(str, prefix)
-    return string.sub(str, 1, string.len(prefix)) == prefix
-end
-
  -- Helper: should prefix based on chat type and settings
  function Name2Chat:ShouldPrefixForChatType(chatType)
      if not chatType then return false end
@@ -259,7 +254,7 @@ end
             return text
         end
     end
-    if self.db.profile.ignoreExclamationMark and type(text) == "string" and starts(text, '!keys') then return text end
+    if self.db.profile.ignoreExclamationMark and type(text) == "string" and string.sub(text, 1, 5) == '!keys' then return text end
     if AlreadyPrefixed(text) then return text end
 
      local prefix = self:GetPrefix()
@@ -318,51 +313,6 @@ local function NormalizeChatType(chatType)
                 return "RAID"
         end
         return chatType
-end
-
--- Intercept text before it is sent from the chat edit box (Retail path)
-function Name2Chat:ChatEdit_SendText(editBox, addHistory, ...)
-	local text = editBox:GetText()
-	local chatType = editBox:GetAttribute("chatType")
-	local channelTarget = editBox:GetAttribute("channelTarget")
-
-	if self.db.profile.debug then
-		self:Print("ChatEdit_SendText: chatType=" .. tostring(chatType) .. ", channelTarget=" .. tostring(channelTarget) .. ", text=" .. tostring(text))
-	end
-
-        chatType = NormalizeChatType(chatType)
-
-	if type(text) == "string" then
-		local newText = self:BuildPrefixedMessageIfNeeded(text, chatType, channelTarget)
-		if newText ~= text then
-			if self.db.profile.debug then self:Print("Prefix applied in ChatEdit_SendText") end
-			editBox:SetText(newText)
-		end
-	end
-
-	return self.hooks.ChatEdit_SendText(editBox, addHistory, ...)
-end
-
--- Extra safety: hook when pressing Enter (some UI paths)
-function Name2Chat:ChatEdit_OnEnterPressedHook(editBox, ...)
-	local text = editBox:GetText()
-	local chatType = editBox:GetAttribute("chatType")
-	local channelTarget = editBox:GetAttribute("channelTarget")
-
-	if self.db.profile.debug then
-		self:Print("OnEnterPressed: chatType=" .. tostring(chatType) .. ", channelTarget=" .. tostring(channelTarget))
-	end
-
-        chatType = NormalizeChatType(chatType)
-
-	if type(text) == "string" then
-		local newText = self:BuildPrefixedMessageIfNeeded(text, chatType, channelTarget)
-		if newText ~= text then
-			if self.db.profile.debug then self:Print("Prefix applied in OnEnterPressed") end
-			editBox:SetText(newText)
-		end
-	end
-	return self.hooks.ChatEdit_OnEnterPressed(editBox, ...)
 end
 
 -- Attach hooks to all chat edit boxes
