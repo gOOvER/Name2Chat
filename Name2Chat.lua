@@ -156,7 +156,13 @@ function Name2Chat:OnInitialize()
 	}
 
 	-- Hook SendChatMessage function
-	self:RawHook("SendChatMessage", true)
+	-- Feature-detect modern Chat API (Retail/DF+)
+	self._useCChatInfo = type(C_ChatInfo) == "table" and type(C_ChatInfo.SendChatMessage) == "function"
+	if self._useCChatInfo then
+		self:RawHook(C_ChatInfo, "SendChatMessage", true)
+	else
+		self:RawHook("SendChatMessage", true)
+	end
 
 	-- get current character name
 	character_name, _ = UnitName("player")
@@ -199,7 +205,11 @@ function Name2Chat:SendChatMessage(msg, chatType, language, channel)
 	end
 
 	-- Call original function
-	self.hooks.SendChatMessage(msg, chatType, language, channel)
+	if self._useCChatInfo then
+		self.hooks[C_ChatInfo].SendChatMessage(msg, chatType, language, channel)
+	else
+		self.hooks.SendChatMessage(msg, chatType, language, channel)
+	end
 end
 
 ---------------------------
