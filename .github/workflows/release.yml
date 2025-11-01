@@ -136,6 +136,11 @@ jobs:
     name: Package Addon
     runs-on: ubuntu-latest
     needs: validate-release
+    outputs:
+      manual_package_created: ${{ steps.manual_package.outputs.manual_package_created }}
+      bigwigs_success: ${{ steps.bigwigs_package.outcome }}
+      package_available: ${{ steps.verify_package.outputs.package_available }}
+      bigwigs_available: ${{ steps.verify_package.outputs.bigwigs_available }}
     
     steps:
     - name: Checkout code
@@ -204,13 +209,31 @@ jobs:
       if: always()
       id: manual_package
       run: |
-        # Check if BigWigs Packager succeeded
-        if [[ "${{ steps.bigwigs_package.outcome }}" == "success" ]]; then
-          echo "✅ BigWigs Packager succeeded, skipping manual fallback"
+        # Check if BigWigs Packager succeeded AND created artifacts
+        BW_SUCCESS="${{ steps.bigwigs_package.outcome }}"
+        
+        echo "BigWigs Packager outcome: $BW_SUCCESS"
+        
+        # Check if BigWigs actually created any packages
+        BW_ARTIFACTS_EXIST="false"
+        if [[ "$BW_SUCCESS" == "success" ]]; then
+          if [ -d ".release" ] && [ "$(find .release -name "*.zip" | wc -l)" -gt 0 ]; then
+            echo "✅ BigWigs Packager succeeded and created artifacts"
+            BW_ARTIFACTS_EXIST="true"
+          else
+            echo "⚠️ BigWigs Packager reported success but no artifacts found"
+            BW_ARTIFACTS_EXIST="false"
+          fi
+        fi
+        
+        # Only skip manual packaging if BigWigs truly succeeded with artifacts
+        if [[ "$BW_ARTIFACTS_EXIST" == "true" ]]; then
+          echo "✅ BigWigs Packager succeeded with artifacts, skipping manual fallback"
+          echo "manual_package_created=false" >> $GITHUB_OUTPUT
           exit 0
         fi
         
-        echo "Creating manual package (BigWigs Packager not successful)..."
+        echo "Creating manual package (BigWigs Packager not successful or no artifacts)..."
         VERSION="${{ needs.validate-release.outputs.version }}"
         IS_PRERELEASE="${{ needs.validate-release.outputs.is_prerelease }}"
         PACKAGE_NAME="Name2Chat-$VERSION"
@@ -218,7 +241,7 @@ jobs:
         if [[ "$IS_PRERELEASE" == "true" ]]; then
           echo "ℹ️ Creating prerelease package (manual packaging for prereleases)"
         else
-          echo "⚠️ BigWigs Packager failed, falling back to manual packaging"
+          echo "⚠️ BigWigs Packager failed or no artifacts, falling back to manual packaging"
         fi
         
         echo "Creating manual release package: $PACKAGE_NAME"
@@ -270,22 +293,61 @@ jobs:
         retention-days: 90
         
     - name: Upload BigWigs package artifact
-      if: steps.bigwigs_package.outcome == 'success'
+      if: steps.bigwigs_package.outcome == 'success' && steps.manual_package.outputs.manual_package_created != 'true'
       uses: actions/upload-artifact@v4
       with:
         name: Name2Chat-${{ needs.validate-release.outputs.version }}-bigwigs
         path: ".release/*.zip"
         retention-days: 90
+        
+    - name: Verify at least one package exists
+      id: verify_package
+      run: |
+        MANUAL_CREATED="${{ steps.manual_package.outputs.manual_package_created }}"
+        BW_SUCCESS="${{ steps.bigwigs_package.outcome }}"
+        
+        echo "Package creation summary:"
+        echo "- Manual package created: $MANUAL_CREATED"
+        echo "- BigWigs outcome: $BW_SUCCESS"
+        
+        # Check if we have any package at all
+        HAS_PACKAGE="false"
+        BIGWIGS_AVAILABLE="false"
+        
+        if [[ "$MANUAL_CREATED" == "true" ]]; then
+          echo "✅ Manual package available"
+          HAS_PACKAGE="true"
+        fi
+        
+        if [[ "$BW_SUCCESS" == "success" ]] && [ -d ".release" ] && [ "$(find .release -name "*.zip" | wc -l)" -gt 0 ]; then
+          echo "✅ BigWigs package available"
+          HAS_PACKAGE="true"
+          BIGWIGS_AVAILABLE="true"
+        fi
+        
+        # Set outputs for the next job
+        echo "package_available=$HAS_PACKAGE" >> $GITHUB_OUTPUT
+        echo "bigwigs_available=$BIGWIGS_AVAILABLE" >> $GITHUB_OUTPUT
+        
+        if [[ "$HAS_PACKAGE" != "true" ]]; then
+          echo "❌ No packages were created successfully!"
+          echo "This is a critical failure - the job should fail to prevent broken releases."
+          exit 1
+        else
+          echo "✅ At least one package is available for release"
+        fi
 
   create-github-release:
     name: Create GitHub Release
     runs-on: ubuntu-latest
     needs: [validate-release, package-addon]
-    if: always() && needs.validate-release.result == 'success'
+    if: always() && needs.validate-release.result == 'success' && needs.package-addon.result == 'success'
     
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Fetch full history for changelog generation
       
     - name: Download BigWigs package artifact
       id: download_bigwigs
@@ -294,6 +356,7 @@ jobs:
         name: Name2Chat-${{ needs.validate-release.outputs.version }}-bigwigs
         path: ./artifacts
       continue-on-error: true
+      if: needs.package-addon.outputs.bigwigs_available == 'true'
         
     - name: Download manual package artifact
       id: download_manual
@@ -302,10 +365,67 @@ jobs:
         name: Name2Chat-${{ needs.validate-release.outputs.version }}-manual
         path: ./artifacts
       continue-on-error: true
+      if: needs.package-addon.outputs.manual_package_created == 'true'
+        
+    - name: Emergency package creation
+      if: steps.download_bigwigs.outcome == 'failure' && steps.download_manual.outcome == 'failure'
+      id: emergency_package
+      run: |
+        echo "🚨 Both artifact downloads failed - creating emergency package"
+        VERSION="${{ needs.validate-release.outputs.version }}"
+        PACKAGE_NAME="Name2Chat-$VERSION"
+        
+        echo "Creating emergency release package: $PACKAGE_NAME"
+        
+        # Update version in TOC file first
+        sed -i "s/@project-version@/$VERSION/g" Name2Chat.toc
+        
+        # Create package directory
+        mkdir -p "$PACKAGE_NAME"
+        
+        # Copy all necessary files
+        cp Name2Chat.toc "$PACKAGE_NAME/"
+        cp Name2Chat.lua "$PACKAGE_NAME/"
+        cp embeds.xml "$PACKAGE_NAME/" 2>/dev/null || echo "No embeds.xml found"
+        cp locale.xml "$PACKAGE_NAME/" 2>/dev/null || echo "No locale.xml found"
+        cp README.md "$PACKAGE_NAME/" 2>/dev/null || echo "No README.md found"
+        cp LICENSE.md "$PACKAGE_NAME/" 2>/dev/null || echo "No LICENSE.md found"
+        
+        # Copy locale directory if it exists
+        if [ -d "lang" ]; then
+          cp -r lang "$PACKAGE_NAME/"
+        fi
+        
+        # Create ZIP package
+        zip -r "$PACKAGE_NAME.zip" "$PACKAGE_NAME/"
+        
+        # Verify package creation
+        if [ -f "$PACKAGE_NAME.zip" ]; then
+          echo "✅ Emergency package created successfully: $PACKAGE_NAME.zip"
+          echo "📦 Package contents:"
+          unzip -l "$PACKAGE_NAME.zip"
+          
+          # Set outputs for release step
+          echo "package_file=$PACKAGE_NAME.zip" >> $GITHUB_OUTPUT
+          echo "package_name=$PACKAGE_NAME" >> $GITHUB_OUTPUT
+          echo "emergency_package=true" >> $GITHUB_OUTPUT
+        else
+          echo "❌ Failed to create emergency package!"
+          exit 1
+        fi
         
     - name: Find package files
       id: find_package
       run: |
+        # Check if we have an emergency package
+        if [[ "${{ steps.emergency_package.outputs.emergency_package }}" == "true" ]]; then
+          echo "📦 Using emergency package"
+          echo "package_file=${{ steps.emergency_package.outputs.package_file }}" >> $GITHUB_OUTPUT
+          echo "package_name=${{ steps.emergency_package.outputs.package_name }}" >> $GITHUB_OUTPUT
+          echo "Package source: Emergency creation" >> $GITHUB_STEP_SUMMARY
+          exit 0
+        fi
+        
         echo "Looking for package files in artifacts directory..."
         
         # Check if artifacts directory exists and list contents
@@ -334,19 +454,12 @@ jobs:
             echo "Available files in artifacts directory:"
             find ./artifacts -type f || echo "No files found"
             echo ""
-            echo "Both BigWigs Packager and manual fallback failed to create packages."
+            echo "This should not happen - emergency package should have been created."
             exit 1
           fi
         else
-          echo "❌ No artifacts directory found!"
-          echo "This means both BigWigs and manual artifact uploads failed."
-          echo ""
-          echo "Download outcomes:"
-          echo "- BigWigs download: ${{ steps.download_bigwigs.outcome }}"
-          echo "- Manual download: ${{ steps.download_manual.outcome }}"
-          echo ""
-          echo "Available files in current directory:"
-          ls -la . || echo "Cannot list current directory"
+          echo "❌ No artifacts directory found and no emergency package!"
+          echo "This indicates a critical failure in the packaging pipeline."
           exit 1
         fi
         
@@ -542,7 +655,7 @@ jobs:
     name: Platform Upload Summary
     runs-on: ubuntu-latest
     needs: [validate-release, package-addon, create-github-release]
-    if: always()
+    if: always() && needs.validate-release.result == 'success'
     
     steps:
     - name: Platform upload summary
@@ -552,10 +665,27 @@ jobs:
         echo "**Tag:** ${{ needs.validate-release.outputs.tag_name }}" >> $GITHUB_STEP_SUMMARY
         echo "**Type:** $([[ "${{ needs.validate-release.outputs.is_prerelease }}" == "true" ]] && echo "🧪 Prerelease" || echo "✅ Stable Release")" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
+        
+        # Check package-addon job result for detailed status
+        PACKAGE_RESULT="${{ needs.package-addon.result }}"
+        RELEASE_RESULT="${{ needs.create-github-release.result }}"
+        
+        echo "### Job Results" >> $GITHUB_STEP_SUMMARY
+        echo "| Job | Status | Notes |" >> $GITHUB_STEP_SUMMARY
+        echo "|-----|--------|-------|" >> $GITHUB_STEP_SUMMARY
+        echo "| Package Creation | $([[ "$PACKAGE_RESULT" == "success" ]] && echo "✅ Success" || echo "❌ Failed") | $PACKAGE_RESULT |" >> $GITHUB_STEP_SUMMARY
+        echo "| GitHub Release | $([[ "$RELEASE_RESULT" == "success" ]] && echo "✅ Success" || echo "❌ Failed") | $RELEASE_RESULT |" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
         echo "### Platform Upload Status" >> $GITHUB_STEP_SUMMARY
         echo "| Platform | Status | Notes |" >> $GITHUB_STEP_SUMMARY
         echo "|----------|--------|-------|" >> $GITHUB_STEP_SUMMARY
-        echo "| GitHub Releases | ✅ Uploaded | Available for download |" >> $GITHUB_STEP_SUMMARY
+        
+        if [[ "$RELEASE_RESULT" == "success" ]]; then
+          echo "| GitHub Releases | ✅ Uploaded | Available for download |" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "| GitHub Releases | ❌ Failed | Check job logs for details |" >> $GITHUB_STEP_SUMMARY
+        fi
         
         # Different upload behavior for prereleases
         if [[ "${{ needs.validate-release.outputs.is_prerelease }}" == "true" ]]; then
@@ -577,5 +707,16 @@ jobs:
           echo "- \`CF_API_KEY\` for CurseForge" >> $GITHUB_STEP_SUMMARY
           echo "- \`WOWI_API_TOKEN\` for WoWInterface" >> $GITHUB_STEP_SUMMARY
           echo "- \`WAGO_API_TOKEN\` for Wago" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        # Add troubleshooting info if packaging failed
+        if [[ "$PACKAGE_RESULT" != "success" ]]; then
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🔧 Troubleshooting" >> $GITHUB_STEP_SUMMARY
+          echo "Package creation failed. Check the following:" >> $GITHUB_STEP_SUMMARY
+          echo "- BigWigs Packager configuration (TOC metadata)" >> $GITHUB_STEP_SUMMARY
+          echo "- Manual fallback script execution" >> $GITHUB_STEP_SUMMARY
+          echo "- Emergency package creation logic" >> $GITHUB_STEP_SUMMARY
+          echo "- File permissions and directory structure" >> $GITHUB_STEP_SUMMARY
         fi
  
