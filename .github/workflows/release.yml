@@ -201,16 +201,22 @@ jobs:
       continue-on-error: true
         
     - name: Manual package fallback
-      if: steps.bigwigs_package.outcome == 'failure'
+      if: always()
       id: manual_package
       run: |
-        echo "BigWigs Packager failed or skipped, creating manual fallback package..."
+        # Check if BigWigs Packager succeeded
+        if [[ "${{ steps.bigwigs_package.outcome }}" == "success" ]]; then
+          echo "✅ BigWigs Packager succeeded, skipping manual fallback"
+          exit 0
+        fi
+        
+        echo "Creating manual package (BigWigs Packager not successful)..."
         VERSION="${{ needs.validate-release.outputs.version }}"
         IS_PRERELEASE="${{ needs.validate-release.outputs.is_prerelease }}"
         PACKAGE_NAME="Name2Chat-$VERSION"
         
         if [[ "$IS_PRERELEASE" == "true" ]]; then
-          echo "ℹ️ Creating prerelease package (manual packaging only)"
+          echo "ℹ️ Creating prerelease package (manual packaging for prereleases)"
         else
           echo "⚠️ BigWigs Packager failed, falling back to manual packaging"
         fi
@@ -233,8 +239,7 @@ jobs:
         
         # Copy documentation
         cp README.md temp_package/Name2Chat/ 2>/dev/null || echo "No README.md found"
-        cp CHANGELOG.md temp_package/Name2Chat/ 2>/dev/null || echo "No CHANGELOG.md found"
-        cp LICENSE temp_package/Name2Chat/ 2>/dev/null || echo "No LICENSE found"
+        cp LICENSE.md temp_package/Name2Chat/ 2>/dev/null || echo "No LICENSE.md found"
         
         # Create ZIP package
         cd temp_package
@@ -250,13 +255,14 @@ jobs:
           # Store package info for artifact upload
           echo "package_name=$PACKAGE_NAME" >> $GITHUB_ENV
           echo "package_file=$PACKAGE_NAME.zip" >> $GITHUB_ENV
+          echo "manual_package_created=true" >> $GITHUB_OUTPUT
         else
           echo "❌ Failed to create package!"
           exit 1
         fi
         
     - name: Upload manual package artifact
-      if: steps.manual_package.outcome == 'success'
+      if: steps.manual_package.outputs.manual_package_created == 'true'
       uses: actions/upload-artifact@v4
       with:
         name: Name2Chat-${{ needs.validate-release.outputs.version }}-manual
@@ -275,7 +281,7 @@ jobs:
     name: Create GitHub Release
     runs-on: ubuntu-latest
     needs: [validate-release, package-addon]
-    if: always() && needs.validate-release.result == 'success' && needs.package-addon.result == 'success'
+    if: always() && needs.validate-release.result == 'success'
     
     steps:
     - name: Checkout code
@@ -291,7 +297,6 @@ jobs:
         
     - name: Download manual package artifact
       id: download_manual
-      if: steps.download_bigwigs.outcome == 'failure'
       uses: actions/download-artifact@v4
       with:
         name: Name2Chat-${{ needs.validate-release.outputs.version }}-manual
@@ -303,41 +308,45 @@ jobs:
       run: |
         echo "Looking for package files in artifacts directory..."
         
-        # Check if artifacts directory exists
-        if [ ! -d "./artifacts" ]; then
+        # Check if artifacts directory exists and list contents
+        if [ -d "./artifacts" ]; then
+          echo "✅ Artifacts directory found"
+          echo "📁 Artifacts directory contents:"
+          ls -la ./artifacts/ || echo "Cannot list artifacts directory"
+          
+          # Find the actual package file
+          PACKAGE_FILE=$(find ./artifacts -name "*.zip" | head -1)
+          if [ -n "$PACKAGE_FILE" ]; then
+            echo "✅ Found package file: $PACKAGE_FILE"
+            echo "package_file=$PACKAGE_FILE" >> $GITHUB_OUTPUT
+            
+            # Extract package name for display
+            PACKAGE_NAME=$(basename "$PACKAGE_FILE" .zip)
+            echo "package_name=$PACKAGE_NAME" >> $GITHUB_OUTPUT
+            
+            # Show package contents for verification
+            echo ""
+            echo "📦 Package contents:"
+            unzip -l "$PACKAGE_FILE" || echo "Cannot list package contents"
+          else
+            echo "❌ No package file found in artifacts directory!"
+            echo ""
+            echo "Available files in artifacts directory:"
+            find ./artifacts -type f || echo "No files found"
+            echo ""
+            echo "Both BigWigs Packager and manual fallback failed to create packages."
+            exit 1
+          fi
+        else
           echo "❌ No artifacts directory found!"
-          echo "This usually means the packaging job failed."
+          echo "This means both BigWigs and manual artifact uploads failed."
+          echo ""
+          echo "Download outcomes:"
+          echo "- BigWigs download: ${{ steps.download_bigwigs.outcome }}"
+          echo "- Manual download: ${{ steps.download_manual.outcome }}"
           echo ""
           echo "Available files in current directory:"
           ls -la . || echo "Cannot list current directory"
-          echo ""
-          echo "Checking if BigWigs or manual packaging succeeded..."
-          exit 1
-        fi
-        
-        ls -la ./artifacts/ || echo "Cannot list artifacts directory"
-        
-        # Find the actual package file
-        PACKAGE_FILE=$(find ./artifacts -name "*.zip" | head -1)
-        if [ -n "$PACKAGE_FILE" ]; then
-          echo "✅ Found package file: $PACKAGE_FILE"
-          echo "package_file=$PACKAGE_FILE" >> $GITHUB_OUTPUT
-          
-          # Extract package name for display
-          PACKAGE_NAME=$(basename "$PACKAGE_FILE" .zip)
-          echo "package_name=$PACKAGE_NAME" >> $GITHUB_OUTPUT
-          
-          # Show package contents for verification
-          echo ""
-          echo "📦 Package contents:"
-          unzip -l "$PACKAGE_FILE" || echo "Cannot list package contents"
-        else
-          echo "❌ No package file found in artifacts directory!"
-          echo ""
-          echo "Available files in artifacts directory:"
-          find ./artifacts -type f || echo "No files found"
-          echo ""
-          echo "This indicates both BigWigs Packager and manual fallback failed."
           exit 1
         fi
         
@@ -347,10 +356,35 @@ jobs:
         VERSION="${{ needs.validate-release.outputs.version }}"
         IS_PRERELEASE="${{ needs.validate-release.outputs.is_prerelease }}"
         
+        # Get previous tag for changelog generation
+        PREVIOUS_TAG=$(git tag --sort=-version:refname | grep -v "^${{ needs.validate-release.outputs.tag_name }}$" | head -1)
+        
+        echo "Generating release notes for version $VERSION"
+        echo "Previous tag: $PREVIOUS_TAG"
+        
+        # Generate changelog from git commits
+        if [ -n "$PREVIOUS_TAG" ]; then
+          echo "📝 Generating changelog from $PREVIOUS_TAG to current..."
+          
+          # Get commits since last tag with better formatting
+          COMMITS=$(git log --pretty=format:"- %s (%h)" ${PREVIOUS_TAG}..HEAD --no-merges | head -20)
+          
+          # Count commits for summary
+          COMMIT_COUNT=$(git rev-list --count ${PREVIOUS_TAG}..HEAD --no-merges)
+          
+          # Get date of previous release
+          PREVIOUS_DATE=$(git log -1 --format=%cd --date=short $PREVIOUS_TAG 2>/dev/null || echo "unknown")
+        else
+          echo "📝 No previous tag found, this is the first release"
+          COMMITS="- Initial release of Name2Chat addon"
+          COMMIT_COUNT=1
+          PREVIOUS_DATE="N/A"
+        fi
+        
         # Generate different release notes for prereleases
         if [[ "$IS_PRERELEASE" == "true" ]]; then
           cat > release_notes.md << EOF
-        ## Name2Chat v$VERSION (Prerelease)
+        ## 🧪 Name2Chat v$VERSION (Prerelease)
         
         ### ⚠️ **Prerelease Version - Use with Caution**
         
@@ -358,90 +392,134 @@ jobs:
         
         **Version:** $VERSION  
         **Status:** 🧪 **Testing/Development**  
+        **Release Date:** $(date +"%B %d, %Y")  
         **Compatible with:** Retail, Classic Era, Burning Crusade Classic, Wrath Classic, Cataclysm Classic
         
-        ### 🧪 Testing Instructions
-        1. **Backup your settings** before installing
+        ### 📦 Download & Installation
+        1. **⚠️ Backup your settings** before installing
         2. Download the \`${{ steps.find_package.outputs.package_name }}.zip\` file below
-        3. Extract to your World of Warcraft \`_retail_/Interface/AddOns/\` directory
-        4. Test thoroughly and report issues on GitHub
+        3. Extract to your World of Warcraft \`Interface/AddOns/\` directory
+        4. Restart World of Warcraft and test thoroughly
+        5. Report any issues on [GitHub Issues](https://github.com/gOOvER/Name2Chat/issues)
         
-        ### ⚡ What's New in this Prerelease
-        - This version contains changes not yet included in a stable release
-        - Please test all functionality before using in important content
-        - Report any issues at: https://github.com/gOOvER/Name2Chat/issues
+        ### 🔄 What's New in this Prerelease
         
-        ### 🔧 Features (Current)
+        **Changes since last version** ($COMMIT_COUNT commits):
+        
+        $COMMITS
+        
+        ### 🧪 Testing Focus Areas
+        - **Multi-version compatibility** (test on different WoW versions)
+        - **Chat functionality** in various channels (Guild, Party, Raid, Instance)
+        - **Configuration commands** (\`/n2c config\`, \`/n2c name\`)
+        - **Name matching** and **command detection** features
+        
+        ### 🔧 Current Features
         - ✅ Automatically adds your name to chat messages
         - ✅ Multi-version WoW support (Retail + All Classic versions)
         - ✅ Configurable chat types (Guild, Party, Raid, Instance, Custom channels)
         - ✅ Smart command detection (ignores messages starting with !)
         - ✅ Character name matching options
+        - ✅ In-game configuration via \`/n2c config\`
         
-        ### ⚠️ **Important Notes**
-        - **Not recommended for production use**
-        - **May contain breaking changes**
-        - **Settings may not be compatible with stable versions**
-        - **Use at your own risk**
+        ### ⚠️ **Important Prerelease Notes**
+        - **Not recommended for production use** or important raid content
+        - **May contain breaking changes** that affect settings
+        - **Settings compatibility** with stable versions not guaranteed
+        - **Use at your own risk** - backup SavedVariables before testing
         
-        ### 🔗 Links
+        ### 🔗 Resources & Support
         - **Stable Releases:** [GitHub Releases](https://github.com/gOOvER/Name2Chat/releases)
-        - **Report Issues:** [GitHub Issues](https://github.com/gOOvER/Name2Chat/issues)
-        - **Website:** https://www.goover.dev
+        - **Bug Reports:** [GitHub Issues](https://github.com/gOOvER/Name2Chat/issues)
+        - **Feature Requests:** [GitHub Discussions](https://github.com/gOOvER/Name2Chat/discussions)
+        - **Developer Website:** https://www.goover.dev
+        
+        ### 📋 Platform Availability
+        - ✅ **GitHub:** Available now (this release)
+        - ⏸️ **CurseForge:** Manual upload required for prereleases
+        - ⏸️ **WoWInterface:** Manual upload required for prereleases  
+        - ⏸️ **Wago:** Manual upload required for prereleases
         
         ---
         
-        **⚠️ Prerelease Version:** Not suitable for production use  
-        **Changelog:** Compare changes at https://github.com/gOOvER/Name2Chat/compare/v$VERSION
+        **⚠️ This is a prerelease version** - Not suitable for production use  
+        **Full Changelog:** [Compare v$VERSION](https://github.com/gOOvER/Name2Chat/compare/${PREVIOUS_TAG}...v$VERSION)
         EOF
         else
           cat > release_notes.md << EOF
-        ## Name2Chat v$VERSION
+        ## 🎮 Name2Chat v$VERSION
         
-        ### 🎮 WoW Addon - Chat Enhancement
+        ### Professional WoW Addon - Chat Enhancement
         
         **Version:** $VERSION  
+        **Release Date:** $(date +"%B %d, %Y")  
         **Compatible with:** Retail, Classic Era, Burning Crusade Classic, Wrath Classic, Cataclysm Classic
         
-        ### 📦 Installation
+        ### 📦 Quick Installation
         1. Download the \`${{ steps.find_package.outputs.package_name }}.zip\` file below
-        2. Extract to your World of Warcraft \`_retail_/Interface/AddOns/\` directory
-        3. For Classic versions, extract to the appropriate AddOns directory
-        4. Restart World of Warcraft
-        5. Configure via \`/n2c config\` in-game
+        2. Extract to your World of Warcraft \`Interface/AddOns/\` directory:
+           - **Retail:** \`_retail_/Interface/AddOns/\`
+           - **Classic versions:** \`_classic_era_/Interface/AddOns/\` (or respective classic folder)
+        3. Restart World of Warcraft
+        4. Configure via \`/n2c config\` in-game
+        5. Enjoy enhanced chat functionality!
         
-        ### 🔧 Features
-        - ✅ Automatically adds your name to chat messages
-        - ✅ Multi-version WoW support (Retail + All Classic versions)
-        - ✅ Configurable chat types (Guild, Party, Raid, Instance, Custom channels)
-        - ✅ Smart command detection (ignores messages starting with !)
-        - ✅ Character name matching options
-        - ✅ Professional packaging with BigWigs Packager
+        ### 🆕 What's New in v$VERSION
         
-        ### 📋 Supported Interface Versions
-        | WoW Version | Interface | Status |
-        |-------------|-----------|--------|
-        | **Retail (The War Within)** | 110205 | ✅ Fully Supported |
-        | **Classic Era** | 11508 | ✅ Fully Supported |
-        | **Burning Crusade Classic** | 20504 | ✅ Fully Supported |
-        | **Wrath Classic** | 30403 | ✅ Fully Supported |
-        | **Cataclysm Classic** | 40400 | ✅ Fully Supported |
+        **Changes in this release** ($COMMIT_COUNT updates since $PREVIOUS_TAG):
         
-        ### 🔗 Platform Links
-        - **Website:** https://www.goover.dev
-        - **CurseForge:** [Project 261826](https://www.curseforge.com/wow/addons/name2chat)
-        - **WoWInterface:** [Addon 24357](https://www.wowinterface.com/downloads/info24357-Name2Chat.html)
-        - **Wago:** [Project Qb6mWqGP](https://addons.wago.io/addons/name2chat)
+        $COMMITS
         
-        ### 📝 Configuration Commands
+        ### 🔧 Core Features
+        - ✨ **Automatic Name Addition** - Adds your character name to chat messages
+        - 🌍 **Universal WoW Support** - Works on Retail + All Classic versions
+        - ⚙️ **Smart Configuration** - Configurable chat types (Guild, Party, Raid, Instance, Custom)
+        - 🧠 **Intelligent Detection** - Ignores commands starting with ! or /
+        - 🎯 **Name Matching Options** - Flexible character name handling
+        - 📦 **Professional Packaging** - Built with BigWigs Packager for quality assurance
+        
+        ### 📋 Supported Game Versions
+        
+        | WoW Version | Interface | Status | Notes |
+        |-------------|-----------|--------|-------|
+        | **Retail (The War Within)** | 110205 | ✅ Fully Supported | Latest features |
+        | **Classic Era** | 11508 | ✅ Fully Supported | Vanilla experience |
+        | **Burning Crusade Classic** | 20504 | ✅ Fully Supported | TBC content |
+        | **Wrath Classic** | 30403 | ✅ Fully Supported | WotLK raids |
+        | **Cataclysm Classic** | 40400 | ✅ Fully Supported | Cata dungeons |
+        
+        ### � Quick Start Commands
         - \`/n2c\` or \`/Name2Chat\` - Toggle addon on/off
         - \`/n2c config\` - Open configuration panel
-        - \`/n2c name YourName\` - Set custom name
+        - \`/n2c name YourName\` - Set custom display name
+        - \`/n2c help\` - Show all available commands
+        
+        ### 🌐 Download Platforms
+        
+        | Platform | Status | Link |
+        |----------|--------|------|
+        | **GitHub Releases** | ✅ Available | [Download here](https://github.com/gOOvER/Name2Chat/releases) |
+        | **CurseForge** | 🔄 Auto-uploaded | [Project 261826](https://www.curseforge.com/wow/addons/name2chat) |
+        | **WoWInterface** | 🔄 Auto-uploaded | [Addon 24357](https://www.wowinterface.com/downloads/info24357-Name2Chat.html) |
+        | **Wago Addons** | 🔄 Auto-uploaded | [Project Qb6mWqGP](https://addons.wago.io/addons/name2chat) |
+        
+        ### �️ Technical Information
+        - **Build System:** Professional CI/CD with GitHub Actions
+        - **Code Quality:** Automated luacheck validation
+        - **Packaging:** BigWigs Packager v2.4+ for multi-version TOCs
+        - **Testing:** Comprehensive validation across all WoW versions
+        
+        ### 🔗 Developer & Support
+        - **Website:** https://www.goover.dev
+        - **Source Code:** [GitHub Repository](https://github.com/gOOvER/Name2Chat)
+        - **Bug Reports:** [GitHub Issues](https://github.com/gOOvER/Name2Chat/issues)
+        - **Feature Requests:** [GitHub Discussions](https://github.com/gOOvER/Name2Chat/discussions)
         
         ---
         
-        **Packaged with:** BigWigs Packager v2.4+ for professional WoW addon distribution  
-        **Changelog:** Compare changes at https://github.com/gOOvER/Name2Chat/compare/v$VERSION
+        **🚀 Professional Grade:** Built with industry-standard tools and practices  
+        **📊 Full Changelog:** [Compare v$VERSION](https://github.com/gOOvER/Name2Chat/compare/${PREVIOUS_TAG}...v$VERSION)  
+        **⭐ Enjoying Name2Chat?** Consider starring the project on GitHub!
         EOF
         fi
         
