@@ -1,0 +1,144 @@
+name: Tests
+
+on:
+  push:
+    branches: [ master, main, dev, develop ]
+  pull_request:
+    branches: [ master, main ]
+
+jobs:
+  lua-syntax:
+    name: Lua Syntax Check
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Install Lua
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y lua5.1 luarocks
+        
+    - name: Install luacheck
+      run: |
+        sudo luarocks install luacheck
+        
+    - name: Run luacheck
+      run: |
+        luacheck --no-color --codes Name2Chat.lua
+        
+    - name: Check TOC files
+      run: |
+        # Validate TOC file format
+        if [ -f "Name2Chat.toc" ]; then
+          echo "✓ TOC file exists"
+          grep -q "## Interface:" Name2Chat.toc && echo "✓ Interface version found" || exit 1
+          grep -q "## Title:" Name2Chat.toc && echo "✓ Title found" || exit 1
+          grep -q "## Version:" Name2Chat.toc && echo "✓ Version found" || exit 1
+        else
+          echo "✗ TOC file missing"
+          exit 1
+        fi
+
+  validate-structure:
+    name: Validate Addon Structure
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Validate addon structure
+      run: |
+        echo "Validating WoW addon structure..."
+        
+        # Check required files
+        [ -f "Name2Chat.toc" ] && echo "✓ TOC file present" || (echo "✗ TOC file missing" && exit 1)
+        [ -f "Name2Chat.lua" ] && echo "✓ Main Lua file present" || (echo "✗ Main Lua file missing" && exit 1)
+        [ -f "embeds.xml" ] && echo "✓ Embeds file present" || echo "⚠ Embeds file missing (optional)"
+        [ -f "locale.xml" ] && echo "✓ Locale file present" || echo "⚠ Locale file missing (optional)"
+        
+        # Check locale structure
+        if [ -d "lang" ]; then
+          echo "✓ Localization directory present"
+          locale_count=$(find lang -name "*.lua" | wc -l)
+          echo "  Found $locale_count locale files"
+        fi
+        
+        echo "Addon structure validation completed successfully!"
+
+  version-consistency:
+    name: Check Version Consistency
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Extract versions
+      id: versions
+      run: |
+        # Extract version from TOC file
+        TOC_VERSION=$(grep "## Version:" Name2Chat.toc | cut -d' ' -f3)
+        echo "toc_version=$TOC_VERSION" >> $GITHUB_OUTPUT
+        echo "TOC Version: $TOC_VERSION"
+        
+        # If this is a tagged release, compare with tag
+        if [[ "$GITHUB_REF" == refs/tags/* ]]; then
+          TAG_VERSION=${GITHUB_REF#refs/tags/v}
+          echo "tag_version=$TAG_VERSION" >> $GITHUB_OUTPUT
+          echo "Tag Version: $TAG_VERSION"
+        fi
+        
+    - name: Validate version consistency
+      run: |
+        TOC_VERSION="${{ steps.versions.outputs.toc_version }}"
+        TAG_VERSION="${{ steps.versions.outputs.tag_version }}"
+        
+        if [[ -n "$TAG_VERSION" ]]; then
+          if [[ "$TOC_VERSION" != "$TAG_VERSION" ]]; then
+            echo "✗ Version mismatch: TOC ($TOC_VERSION) != Tag ($TAG_VERSION)"
+            exit 1
+          else
+            echo "✓ Version consistency check passed: $TOC_VERSION"
+          fi
+        else
+          echo "✓ No tag to compare, TOC version: $TOC_VERSION"
+        fi
+
+  test-interfaces:
+    name: Test Interface Compatibility
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Validate interface versions
+      run: |
+        echo "Checking interface version compatibility..."
+        
+        # Extract interface versions from TOC
+        RETAIL_INTERFACE=$(grep "## Interface-Retail:" Name2Chat.toc | cut -d' ' -f3 || grep "## Interface:" Name2Chat.toc | cut -d' ' -f3)
+        CLASSIC_INTERFACE=$(grep "## Interface-Classic:" Name2Chat.toc | cut -d' ' -f3)
+        BCC_INTERFACE=$(grep "## Interface-BCC:" Name2Chat.toc | cut -d' ' -f3)
+        WRATH_INTERFACE=$(grep "## Interface-Wrath:" Name2Chat.toc | cut -d' ' -f3)
+        CATA_INTERFACE=$(grep "## Interface-Cata:" Name2Chat.toc | cut -d' ' -f3)
+        
+        echo "Interface versions found:"
+        echo "  Retail: $RETAIL_INTERFACE"
+        echo "  Classic: $CLASSIC_INTERFACE"
+        echo "  BCC: $BCC_INTERFACE"
+        echo "  Wrath: $WRATH_INTERFACE"
+        echo "  Cata: $CATA_INTERFACE"
+        
+        # Validate version format (should be numeric)
+        for version in "$RETAIL_INTERFACE" "$CLASSIC_INTERFACE" "$BCC_INTERFACE" "$WRATH_INTERFACE" "$CATA_INTERFACE"; do
+          if [[ -n "$version" ]] && [[ ! "$version" =~ ^[0-9]+$ ]]; then
+            echo "✗ Invalid interface version format: $version"
+            exit 1
+          fi
+        done
+        
+        echo "✓ All interface versions are valid"

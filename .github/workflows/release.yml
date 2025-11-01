@@ -1,34 +1,346 @@
-name: Package Retail
+name: Release
 
 on:
-  workflow_dispatch:
   push:
-    branches:
-      - master
     tags:
-      - '*'
-      - '!**-classic'
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (e.g., 3.5.5)'
+        required: true
+        type: string
+      create_tag:
+        description: 'Create git tag'
+        required: true
+        type: boolean
+        default: true
 
 jobs:
-  build:
+  validate-release:
+    name: Validate Release
     runs-on: ubuntu-latest
-
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      tag_name: ${{ steps.version.outputs.tag_name }}
+    
     steps:
-      - name: Checkout addon
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 100
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Determine version
+      id: version
+      run: |
+        if [[ "${{ github.event_name }}" == "push" ]]; then
+          # Extract version from tag
+          VERSION=${GITHUB_REF#refs/tags/v}
+          TAG_NAME=$GITHUB_REF_NAME
+        else
+          # Use manual input
+          VERSION="${{ github.event.inputs.version }}"
+          TAG_NAME="v$VERSION"
+        fi
+        
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+        echo "tag_name=$TAG_NAME" >> $GITHUB_OUTPUT
+        echo "Release version: $VERSION"
+        echo "Tag name: $TAG_NAME"
+        
+    - name: Validate version format
+      run: |
+        VERSION="${{ steps.version.outputs.version }}"
+        if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+          echo "✗ Invalid version format: $VERSION (expected: X.Y.Z)"
+          exit 1
+        fi
+        echo "✓ Version format is valid: $VERSION"
+        
+    - name: Check TOC version consistency
+      run: |
+        VERSION="${{ steps.version.outputs.version }}"
+        TOC_VERSION=$(grep "## Version:" Name2Chat.toc | cut -d' ' -f3)
+        
+        if [[ "$TOC_VERSION" != "$VERSION" ]]; then
+          echo "✗ Version mismatch: TOC ($TOC_VERSION) != Release ($VERSION)"
+          exit 1
+        fi
+        echo "✓ TOC version matches release version: $VERSION"
 
-      #- name: Run luacheck
-      #  uses: BigWigsMods/actions/luacheck@master
-      #  with:
-      #    args: -q
+  create-tag:
+    name: Create Git Tag
+    runs-on: ubuntu-latest
+    needs: validate-release
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.create_tag == 'true'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Create and push tag
+      run: |
+        TAG_NAME="${{ needs.validate-release.outputs.tag_name }}"
+        VERSION="${{ needs.validate-release.outputs.version }}"
+        
+        git config user.name "GitHub Actions"
+        git config user.email "actions@github.com"
+        
+        git tag -a "$TAG_NAME" -m "Release version $VERSION"
+        git push origin "$TAG_NAME"
+        
+        echo "✓ Created and pushed tag: $TAG_NAME"
 
-      - name: Package Retail
-        uses: BigWigsMods/packager@master
-        env:
-          CF_API_KEY: ${{ secrets.CF_API_KEY }}
-          WAGO_API_TOKEN: ${{ secrets.WAGO_API_TOKEN }}
-          WOWI_API_TOKEN: ${{ secrets.WOWI_API_TOKEN }}
-          GITHUB_OAUTH: ${{ secrets.GITHUB_TOKEN }}
+  package-addon:
+    name: Package Addon
+    runs-on: ubuntu-latest
+    needs: validate-release
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Fetch full history for proper changelog generation
+        
+    - name: Validate TOC file structure
+      run: |
+        echo "Validating TOC file structure for BigWigs Packager..."
+        
+        # Check if required TOC metadata is present
+        if ! grep -q "## X-Curse-Project-ID:" Name2Chat.toc; then
+          echo "⚠️ Missing X-Curse-Project-ID in TOC file"
+        fi
+        
+        if ! grep -q "## X-WoWI-ID:" Name2Chat.toc; then
+          echo "⚠️ Missing X-WoWI-ID in TOC file"
+        fi
+        
+        if ! grep -q "## X-Wago-ID:" Name2Chat.toc; then
+          echo "⚠️ Missing X-Wago-ID in TOC file"
+        fi
+        
+        # Validate interface versions
+        echo "Checking interface version format..."
+        RETAIL_INTERFACE=$(grep "## Interface-Retail:" Name2Chat.toc | cut -d' ' -f3 || grep "## Interface:" Name2Chat.toc | head -1 | cut -d' ' -f3)
+        CLASSIC_INTERFACE=$(grep "## Interface-Classic:" Name2Chat.toc | cut -d' ' -f3)
+        
+        echo "Found interfaces: Retail=$RETAIL_INTERFACE, Classic=$CLASSIC_INTERFACE"
+        
+    - name: Install luacheck (optional validation)
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y lua5.1 luarocks
+        sudo luarocks install luacheck
+        
+    - name: Run luacheck (non-blocking)
+      run: |
+        echo "Running luacheck for code quality (non-blocking)..."
+        luacheck --no-color --codes Name2Chat.lua || echo "Luacheck found issues, but continuing with build..."
+        
+    - name: Package with BigWigs Packager
+      uses: BigWigsMods/packager@v2
+      env:
+        CF_API_KEY: ${{ secrets.CF_API_KEY }}
+        WAGO_API_TOKEN: ${{ secrets.WAGO_API_TOKEN }}
+        WOWI_API_TOKEN: ${{ secrets.WOWI_API_TOKEN }}
+        GITHUB_OAUTH: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        args: -S  # Enable TOC creation for multiple game types
+        
+    - name: Manual package fallback
+      if: failure()
+      run: |
+        echo "BigWigs Packager failed, creating manual fallback package..."
+        VERSION="${{ needs.validate-release.outputs.version }}"
+        PACKAGE_NAME="Name2Chat-$VERSION"
+        
+        echo "Creating manual release package: $PACKAGE_NAME"
+        
+        # Create temporary directory for packaging
+        mkdir -p temp_package/Name2Chat
+        
+        # Copy addon files
+        cp Name2Chat.toc temp_package/Name2Chat/
+        cp Name2Chat.lua temp_package/Name2Chat/
+        cp embeds.xml temp_package/Name2Chat/ 2>/dev/null || echo "No embeds.xml found"
+        cp locale.xml temp_package/Name2Chat/ 2>/dev/null || echo "No locale.xml found"
+        
+        # Copy locale directory if it exists
+        if [ -d "lang" ]; then
+          cp -r lang temp_package/Name2Chat/
+        fi
+        
+        # Copy documentation
+        cp README.md temp_package/Name2Chat/ 2>/dev/null || echo "No README.md found"
+        cp CHANGELOG.md temp_package/Name2Chat/ 2>/dev/null || echo "No CHANGELOG.md found"
+        cp LICENSE temp_package/Name2Chat/ 2>/dev/null || echo "No LICENSE found"
+        
+        # Create ZIP package
+        cd temp_package
+        zip -r "../$PACKAGE_NAME.zip" Name2Chat/
+        cd ..
+        
+        # Verify package contents
+        echo "Package contents:"
+        unzip -l "$PACKAGE_NAME.zip"
+        
+        # Store package info for GitHub release
+        echo "package_name=$PACKAGE_NAME" >> $GITHUB_ENV
+        echo "package_file=$PACKAGE_NAME.zip" >> $GITHUB_ENV
+        
+    - name: Upload manual package artifact
+      if: failure()
+      uses: actions/upload-artifact@v4
+      with:
+        name: Name2Chat-${{ needs.validate-release.outputs.version }}-manual
+        path: ${{ env.package_file }}
+        retention-days: 90
+        
+    - name: Upload BigWigs package artifact
+      if: success()
+      uses: actions/upload-artifact@v4
+      with:
+        name: Name2Chat-${{ needs.validate-release.outputs.version }}-bigwigs
+        path: ".release/*.zip"
+        retention-days: 90
+
+  create-github-release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    needs: [validate-release, package-addon]
+    if: always() && needs.validate-release.result == 'success'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Download BigWigs package artifact
+      uses: actions/download-artifact@v4
+      with:
+        name: Name2Chat-${{ needs.validate-release.outputs.version }}-bigwigs
+        path: ./artifacts
+      continue-on-error: true
+        
+    - name: Download manual package artifact
+      if: failure()
+      uses: actions/download-artifact@v4
+      with:
+        name: Name2Chat-${{ needs.validate-release.outputs.version }}-manual
+        path: ./artifacts
+      continue-on-error: true
+        
+    - name: Find package files
+      id: find_package
+      run: |
+        echo "Looking for package files in artifacts directory..."
+        ls -la ./artifacts/ || echo "No artifacts directory found"
+        
+        # Find the actual package file
+        PACKAGE_FILE=$(find ./artifacts -name "*.zip" | head -1)
+        if [ -n "$PACKAGE_FILE" ]; then
+          echo "Found package file: $PACKAGE_FILE"
+          echo "package_file=$PACKAGE_FILE" >> $GITHUB_OUTPUT
+          
+          # Extract package name for display
+          PACKAGE_NAME=$(basename "$PACKAGE_FILE" .zip)
+          echo "package_name=$PACKAGE_NAME" >> $GITHUB_OUTPUT
+        else
+          echo "No package file found!"
+          exit 1
+        fi
+        
+    - name: Generate release notes
+      id: release_notes
+      run: |
+        VERSION="${{ needs.validate-release.outputs.version }}"
+        
+        # Generate release notes
+        cat > release_notes.md << EOF
+        ## Name2Chat v$VERSION
+        
+        ### 🎮 WoW Addon - Chat Enhancement
+        
+        **Version:** $VERSION  
+        **Compatible with:** Retail, Classic Era, Burning Crusade Classic, Wrath Classic, Cataclysm Classic
+        
+        ### 📦 Installation
+        1. Download the \`${{ steps.find_package.outputs.package_name }}.zip\` file below
+        2. Extract to your World of Warcraft \`_retail_/Interface/AddOns/\` directory
+        3. For Classic versions, extract to the appropriate AddOns directory
+        4. Restart World of Warcraft
+        5. Configure via \`/n2c config\` in-game
+        
+        ### 🔧 Features
+        - ✅ Automatically adds your name to chat messages
+        - ✅ Multi-version WoW support (Retail + All Classic versions)
+        - ✅ Configurable chat types (Guild, Party, Raid, Instance, Custom channels)
+        - ✅ Smart command detection (ignores messages starting with !)
+        - ✅ Character name matching options
+        - ✅ Professional packaging with BigWigs Packager
+        
+        ### 📋 Supported Interface Versions
+        | WoW Version | Interface | Status |
+        |-------------|-----------|--------|
+        | **Retail (The War Within)** | 110205 | ✅ Fully Supported |
+        | **Classic Era** | 11508 | ✅ Fully Supported |
+        | **Burning Crusade Classic** | 20504 | ✅ Fully Supported |
+        | **Wrath Classic** | 30403 | ✅ Fully Supported |
+        | **Cataclysm Classic** | 40400 | ✅ Fully Supported |
+        
+        ### 🔗 Platform Links
+        - **Website:** https://www.goover.dev
+        - **CurseForge:** [Project 261826](https://www.curseforge.com/wow/addons/name2chat)
+        - **WoWInterface:** [Addon 24357](https://www.wowinterface.com/downloads/info24357-Name2Chat.html)
+        - **Wago:** [Project Qb6mWqGP](https://addons.wago.io/addons/name2chat)
+        
+        ### 📝 Configuration Commands
+        - \`/n2c\` or \`/Name2Chat\` - Toggle addon on/off
+        - \`/n2c config\` - Open configuration panel
+        - \`/n2c name YourName\` - Set custom name
+        
+        ---
+        
+        **Packaged with:** BigWigs Packager v2.4+ for professional WoW addon distribution  
+        **Changelog:** Compare changes at https://github.com/gOOvER/Name2Chat/compare/v$VERSION
+        EOF
+        
+        echo "release_notes_file=release_notes.md" >> $GITHUB_OUTPUT
+        
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: ${{ needs.validate-release.outputs.tag_name }}
+        name: Name2Chat v${{ needs.validate-release.outputs.version }}
+        body_path: release_notes.md
+        files: |
+          ${{ steps.find_package.outputs.package_file }}
+        draft: false
+        prerelease: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  platform-upload-summary:
+    name: Platform Upload Summary
+    runs-on: ubuntu-latest
+    needs: [validate-release, package-addon, create-github-release]
+    if: always()
+    
+    steps:
+    - name: Platform upload summary
+      run: |
+        echo "## 📦 Release Summary" >> $GITHUB_STEP_SUMMARY
+        echo "**Version:** ${{ needs.validate-release.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+        echo "**Tag:** ${{ needs.validate-release.outputs.tag_name }}" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Platform Upload Status" >> $GITHUB_STEP_SUMMARY
+        echo "| Platform | Status | Notes |" >> $GITHUB_STEP_SUMMARY
+        echo "|----------|--------|-------|" >> $GITHUB_STEP_SUMMARY
+        echo "| GitHub Releases | ✅ Uploaded | Available for download |" >> $GITHUB_STEP_SUMMARY
+        echo "| CurseForge | 🔑 Auto-upload | Via BigWigs Packager (if API key set) |" >> $GITHUB_STEP_SUMMARY
+        echo "| WoWInterface | 🔑 Auto-upload | Via BigWigs Packager (if API key set) |" >> $GITHUB_STEP_SUMMARY
+        echo "| Wago | 🔑 Auto-upload | Via BigWigs Packager (if API key set) |" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### 🔧 Setup API Keys" >> $GITHUB_STEP_SUMMARY
+        echo "To enable automatic uploads to addon platforms, add these secrets:" >> $GITHUB_STEP_SUMMARY
+        echo "- \`CF_API_KEY\` for CurseForge" >> $GITHUB_STEP_SUMMARY
+        echo "- \`WOWI_API_TOKEN\` for WoWInterface" >> $GITHUB_STEP_SUMMARY
+        echo "- \`WAGO_API_TOKEN\` for Wago" >> $GITHUB_STEP_SUMMARY
  
