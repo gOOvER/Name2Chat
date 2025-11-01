@@ -192,7 +192,7 @@ function Name2Chat:SendChatMessage(msg, chatType, language, channel)
 						msg = "(" .. self.db.profile.name .."): " .. msg
 					end
 
-				elseif (self.db.profile.channel ~= "") and chatType == "CHANNEL" then
+				elseif (self.db.profile.channel ~= nil) and (self.db.profile.channel ~= "") and chatType == "CHANNEL" then
 
 					local id, chname = GetChannelName(channel)
 					if strupper(self.db.profile.channel) == strupper(chname) then
