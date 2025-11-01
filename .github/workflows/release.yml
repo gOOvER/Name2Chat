@@ -189,21 +189,31 @@ jobs:
         luacheck --no-color --codes Name2Chat.lua || echo "Luacheck found issues, but continuing with build..."
         
     - name: Package with BigWigs Packager
+      id: bigwigs_package
       uses: BigWigsMods/packager@v2
       with:
         args: -S  # Create multi-version TOCs automatically
       env:
-        CF_API_KEY: ${{ secrets.CF_API_KEY }}
-        WAGO_API_TOKEN: ${{ secrets.WAGO_API_TOKEN }}
-        WOWI_API_TOKEN: ${{ secrets.WOWI_API_TOKEN }}
+        CF_API_KEY: ${{ needs.validate-release.outputs.is_prerelease == 'true' && '' || secrets.CF_API_KEY }}
+        WAGO_API_TOKEN: ${{ needs.validate-release.outputs.is_prerelease == 'true' && '' || secrets.WAGO_API_TOKEN }}
+        WOWI_API_TOKEN: ${{ needs.validate-release.outputs.is_prerelease == 'true' && '' || secrets.WOWI_API_TOKEN }}
         GITHUB_OAUTH: ${{ secrets.GITHUB_TOKEN }}
+      continue-on-error: true
         
     - name: Manual package fallback
-      if: failure()
+      if: steps.bigwigs_package.outcome == 'failure'
+      id: manual_package
       run: |
-        echo "BigWigs Packager failed, creating manual fallback package..."
+        echo "BigWigs Packager failed or skipped, creating manual fallback package..."
         VERSION="${{ needs.validate-release.outputs.version }}"
+        IS_PRERELEASE="${{ needs.validate-release.outputs.is_prerelease }}"
         PACKAGE_NAME="Name2Chat-$VERSION"
+        
+        if [[ "$IS_PRERELEASE" == "true" ]]; then
+          echo "ℹ️ Creating prerelease package (manual packaging only)"
+        else
+          echo "⚠️ BigWigs Packager failed, falling back to manual packaging"
+        fi
         
         echo "Creating manual release package: $PACKAGE_NAME"
         
@@ -231,16 +241,22 @@ jobs:
         zip -r "../$PACKAGE_NAME.zip" Name2Chat/
         cd ..
         
-        # Verify package contents
-        echo "Package contents:"
-        unzip -l "$PACKAGE_NAME.zip"
-        
-        # Store package info for GitHub release
-        echo "package_name=$PACKAGE_NAME" >> $GITHUB_ENV
-        echo "package_file=$PACKAGE_NAME.zip" >> $GITHUB_ENV
+        # Verify package creation
+        if [ -f "$PACKAGE_NAME.zip" ]; then
+          echo "✅ Package created successfully: $PACKAGE_NAME.zip"
+          echo "📦 Package contents:"
+          unzip -l "$PACKAGE_NAME.zip"
+          
+          # Store package info for artifact upload
+          echo "package_name=$PACKAGE_NAME" >> $GITHUB_ENV
+          echo "package_file=$PACKAGE_NAME.zip" >> $GITHUB_ENV
+        else
+          echo "❌ Failed to create package!"
+          exit 1
+        fi
         
     - name: Upload manual package artifact
-      if: failure()
+      if: steps.manual_package.outcome == 'success'
       uses: actions/upload-artifact@v4
       with:
         name: Name2Chat-${{ needs.validate-release.outputs.version }}-manual
@@ -248,7 +264,7 @@ jobs:
         retention-days: 90
         
     - name: Upload BigWigs package artifact
-      if: success()
+      if: steps.bigwigs_package.outcome == 'success'
       uses: actions/upload-artifact@v4
       with:
         name: Name2Chat-${{ needs.validate-release.outputs.version }}-bigwigs
@@ -259,13 +275,14 @@ jobs:
     name: Create GitHub Release
     runs-on: ubuntu-latest
     needs: [validate-release, package-addon]
-    if: always() && needs.validate-release.result == 'success'
+    if: always() && needs.validate-release.result == 'success' && needs.package-addon.result == 'success'
     
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
       
     - name: Download BigWigs package artifact
+      id: download_bigwigs
       uses: actions/download-artifact@v4
       with:
         name: Name2Chat-${{ needs.validate-release.outputs.version }}-bigwigs
@@ -273,7 +290,8 @@ jobs:
       continue-on-error: true
         
     - name: Download manual package artifact
-      if: failure()
+      id: download_manual
+      if: steps.download_bigwigs.outcome == 'failure'
       uses: actions/download-artifact@v4
       with:
         name: Name2Chat-${{ needs.validate-release.outputs.version }}-manual
@@ -284,19 +302,42 @@ jobs:
       id: find_package
       run: |
         echo "Looking for package files in artifacts directory..."
-        ls -la ./artifacts/ || echo "No artifacts directory found"
+        
+        # Check if artifacts directory exists
+        if [ ! -d "./artifacts" ]; then
+          echo "❌ No artifacts directory found!"
+          echo "This usually means the packaging job failed."
+          echo ""
+          echo "Available files in current directory:"
+          ls -la . || echo "Cannot list current directory"
+          echo ""
+          echo "Checking if BigWigs or manual packaging succeeded..."
+          exit 1
+        fi
+        
+        ls -la ./artifacts/ || echo "Cannot list artifacts directory"
         
         # Find the actual package file
         PACKAGE_FILE=$(find ./artifacts -name "*.zip" | head -1)
         if [ -n "$PACKAGE_FILE" ]; then
-          echo "Found package file: $PACKAGE_FILE"
+          echo "✅ Found package file: $PACKAGE_FILE"
           echo "package_file=$PACKAGE_FILE" >> $GITHUB_OUTPUT
           
           # Extract package name for display
           PACKAGE_NAME=$(basename "$PACKAGE_FILE" .zip)
           echo "package_name=$PACKAGE_NAME" >> $GITHUB_OUTPUT
+          
+          # Show package contents for verification
+          echo ""
+          echo "📦 Package contents:"
+          unzip -l "$PACKAGE_FILE" || echo "Cannot list package contents"
         else
-          echo "No package file found!"
+          echo "❌ No package file found in artifacts directory!"
+          echo ""
+          echo "Available files in artifacts directory:"
+          find ./artifacts -type f || echo "No files found"
+          echo ""
+          echo "This indicates both BigWigs Packager and manual fallback failed."
           exit 1
         fi
         
