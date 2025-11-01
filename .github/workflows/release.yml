@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version to release (e.g., 3.5.5)'
+        description: 'Version to release (e.g., 3.5.5 or 3.6.0-beta1)'
         required: true
         type: string
       create_tag:
@@ -15,6 +15,11 @@ on:
         required: true
         type: boolean
         default: true
+      prerelease:
+        description: 'Mark as prerelease (for beta/alpha versions)'
+        required: false
+        type: boolean
+        default: false
 
 jobs:
   validate-release:
@@ -23,6 +28,7 @@ jobs:
     outputs:
       version: ${{ steps.version.outputs.version }}
       tag_name: ${{ steps.version.outputs.tag_name }}
+      is_prerelease: ${{ steps.version.outputs.is_prerelease }}
     
     steps:
     - name: Checkout code
@@ -35,36 +41,66 @@ jobs:
           # Extract version from tag
           VERSION=${GITHUB_REF#refs/tags/v}
           TAG_NAME=$GITHUB_REF_NAME
+          
+          # Auto-detect prerelease from version string
+          if [[ "$VERSION" =~ (alpha|beta|rc|dev|pre) ]]; then
+            IS_PRERELEASE="true"
+          else
+            IS_PRERELEASE="false"
+          fi
         else
           # Use manual input
           VERSION="${{ github.event.inputs.version }}"
           TAG_NAME="v$VERSION"
+          IS_PRERELEASE="${{ github.event.inputs.prerelease }}"
         fi
         
         echo "version=$VERSION" >> $GITHUB_OUTPUT
         echo "tag_name=$TAG_NAME" >> $GITHUB_OUTPUT
+        echo "is_prerelease=$IS_PRERELEASE" >> $GITHUB_OUTPUT
         echo "Release version: $VERSION"
         echo "Tag name: $TAG_NAME"
+        echo "Is prerelease: $IS_PRERELEASE"
         
     - name: Validate version format
       run: |
         VERSION="${{ steps.version.outputs.version }}"
-        if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-          echo "✗ Invalid version format: $VERSION (expected: X.Y.Z)"
-          exit 1
+        IS_PRERELEASE="${{ steps.version.outputs.is_prerelease }}"
+        
+        # Allow prerelease formats: X.Y.Z-alpha1, X.Y.Z-beta1, X.Y.Z-rc1, X.Y.Z-dev
+        if [[ "$IS_PRERELEASE" == "true" ]]; then
+          if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+-(alpha|beta|rc|dev)[0-9]*$ ]]; then
+            echo "✗ Invalid prerelease version format: $VERSION"
+            echo "Expected formats: X.Y.Z-alpha1, X.Y.Z-beta1, X.Y.Z-rc1, X.Y.Z-dev"
+            exit 1
+          fi
+          echo "✓ Prerelease version format is valid: $VERSION"
+        else
+          if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "✗ Invalid stable version format: $VERSION (expected: X.Y.Z)"
+            exit 1
+          fi
+          echo "✓ Stable version format is valid: $VERSION"
         fi
-        echo "✓ Version format is valid: $VERSION"
         
     - name: Check TOC version consistency
       run: |
         VERSION="${{ steps.version.outputs.version }}"
+        IS_PRERELEASE="${{ steps.version.outputs.is_prerelease }}"
         TOC_VERSION=$(grep "## Version:" Name2Chat.toc | cut -d' ' -f3)
         
-        if [[ "$TOC_VERSION" != "$VERSION" ]]; then
-          echo "✗ Version mismatch: TOC ($TOC_VERSION) != Release ($VERSION)"
-          exit 1
+        # For prereleases, allow TOC version to be different (development version)
+        if [[ "$IS_PRERELEASE" == "true" ]]; then
+          echo "ℹ️ Prerelease detected - skipping TOC version check"
+          echo "TOC version: $TOC_VERSION, Release version: $VERSION"
+        else
+          if [[ "$TOC_VERSION" != "$VERSION" && "$TOC_VERSION" != "@project-version@" ]]; then
+            echo "✗ Version mismatch: TOC ($TOC_VERSION) != Release ($VERSION)"
+            echo "For stable releases, TOC version must match or use @project-version@ placeholder"
+            exit 1
+          fi
+          echo "✓ TOC version is compatible with release version: $VERSION"
         fi
-        echo "✓ TOC version matches release version: $VERSION"
 
   create-tag:
     name: Create Git Tag
@@ -80,14 +116,21 @@ jobs:
       run: |
         TAG_NAME="${{ needs.validate-release.outputs.tag_name }}"
         VERSION="${{ needs.validate-release.outputs.version }}"
+        IS_PRERELEASE="${{ needs.validate-release.outputs.is_prerelease }}"
         
         git config user.name "GitHub Actions"
         git config user.email "actions@github.com"
         
-        git tag -a "$TAG_NAME" -m "Release version $VERSION"
-        git push origin "$TAG_NAME"
+        # Create appropriate tag message
+        if [[ "$IS_PRERELEASE" == "true" ]]; then
+          git tag -a "$TAG_NAME" -m "Prerelease version $VERSION"
+          echo "✓ Created prerelease tag: $TAG_NAME"
+        else
+          git tag -a "$TAG_NAME" -m "Release version $VERSION"
+          echo "✓ Created release tag: $TAG_NAME"
+        fi
         
-        echo "✓ Created and pushed tag: $TAG_NAME"
+        git push origin "$TAG_NAME"
 
   package-addon:
     name: Package Addon
@@ -99,6 +142,16 @@ jobs:
       uses: actions/checkout@v4
       with:
         fetch-depth: 0  # Fetch full history for proper changelog generation
+        
+    - name: Update version in TOC file
+      run: |
+        VERSION="${{ needs.validate-release.outputs.version }}"
+        echo "Updating version placeholder in TOC file to: $VERSION"
+        sed -i "s/@project-version@/$VERSION/g" Name2Chat.toc
+        
+        # Verify the version was updated
+        echo "Updated TOC version line:"
+        grep "## Version:" Name2Chat.toc
         
     - name: Validate TOC file structure
       run: |
@@ -137,13 +190,13 @@ jobs:
         
     - name: Package with BigWigs Packager
       uses: BigWigsMods/packager@v2
+      with:
+        args: -S  # Create multi-version TOCs automatically
       env:
         CF_API_KEY: ${{ secrets.CF_API_KEY }}
         WAGO_API_TOKEN: ${{ secrets.WAGO_API_TOKEN }}
         WOWI_API_TOKEN: ${{ secrets.WOWI_API_TOKEN }}
         GITHUB_OAUTH: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        args: -S  # Enable TOC creation for multiple game types
         
     - name: Manual package fallback
       if: failure()
@@ -157,7 +210,7 @@ jobs:
         # Create temporary directory for packaging
         mkdir -p temp_package/Name2Chat
         
-        # Copy addon files
+        # Copy addon files (version already updated earlier)
         cp Name2Chat.toc temp_package/Name2Chat/
         cp Name2Chat.lua temp_package/Name2Chat/
         cp embeds.xml temp_package/Name2Chat/ 2>/dev/null || echo "No embeds.xml found"
@@ -191,7 +244,7 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: Name2Chat-${{ needs.validate-release.outputs.version }}-manual
-        path: ${{ env.package_file }}
+        path: "*.zip"
         retention-days: 90
         
     - name: Upload BigWigs package artifact
@@ -251,9 +304,57 @@ jobs:
       id: release_notes
       run: |
         VERSION="${{ needs.validate-release.outputs.version }}"
+        IS_PRERELEASE="${{ needs.validate-release.outputs.is_prerelease }}"
         
-        # Generate release notes
-        cat > release_notes.md << EOF
+        # Generate different release notes for prereleases
+        if [[ "$IS_PRERELEASE" == "true" ]]; then
+          cat > release_notes.md << EOF
+        ## Name2Chat v$VERSION (Prerelease)
+        
+        ### ⚠️ **Prerelease Version - Use with Caution**
+        
+        This is a **prerelease version** for testing purposes. It may contain bugs or incomplete features.
+        
+        **Version:** $VERSION  
+        **Status:** 🧪 **Testing/Development**  
+        **Compatible with:** Retail, Classic Era, Burning Crusade Classic, Wrath Classic, Cataclysm Classic
+        
+        ### 🧪 Testing Instructions
+        1. **Backup your settings** before installing
+        2. Download the \`${{ steps.find_package.outputs.package_name }}.zip\` file below
+        3. Extract to your World of Warcraft \`_retail_/Interface/AddOns/\` directory
+        4. Test thoroughly and report issues on GitHub
+        
+        ### ⚡ What's New in this Prerelease
+        - This version contains changes not yet included in a stable release
+        - Please test all functionality before using in important content
+        - Report any issues at: https://github.com/gOOvER/Name2Chat/issues
+        
+        ### 🔧 Features (Current)
+        - ✅ Automatically adds your name to chat messages
+        - ✅ Multi-version WoW support (Retail + All Classic versions)
+        - ✅ Configurable chat types (Guild, Party, Raid, Instance, Custom channels)
+        - ✅ Smart command detection (ignores messages starting with !)
+        - ✅ Character name matching options
+        
+        ### ⚠️ **Important Notes**
+        - **Not recommended for production use**
+        - **May contain breaking changes**
+        - **Settings may not be compatible with stable versions**
+        - **Use at your own risk**
+        
+        ### 🔗 Links
+        - **Stable Releases:** [GitHub Releases](https://github.com/gOOvER/Name2Chat/releases)
+        - **Report Issues:** [GitHub Issues](https://github.com/gOOvER/Name2Chat/issues)
+        - **Website:** https://www.goover.dev
+        
+        ---
+        
+        **⚠️ Prerelease Version:** Not suitable for production use  
+        **Changelog:** Compare changes at https://github.com/gOOvER/Name2Chat/compare/v$VERSION
+        EOF
+        else
+          cat > release_notes.md << EOF
         ## Name2Chat v$VERSION
         
         ### 🎮 WoW Addon - Chat Enhancement
@@ -301,6 +402,7 @@ jobs:
         **Packaged with:** BigWigs Packager v2.4+ for professional WoW addon distribution  
         **Changelog:** Compare changes at https://github.com/gOOvER/Name2Chat/compare/v$VERSION
         EOF
+        fi
         
         echo "release_notes_file=release_notes.md" >> $GITHUB_OUTPUT
         
@@ -313,7 +415,7 @@ jobs:
         files: |
           ${{ steps.find_package.outputs.package_file }}
         draft: false
-        prerelease: false
+        prerelease: ${{ needs.validate-release.outputs.is_prerelease == 'true' }}
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -329,18 +431,32 @@ jobs:
         echo "## 📦 Release Summary" >> $GITHUB_STEP_SUMMARY
         echo "**Version:** ${{ needs.validate-release.outputs.version }}" >> $GITHUB_STEP_SUMMARY
         echo "**Tag:** ${{ needs.validate-release.outputs.tag_name }}" >> $GITHUB_STEP_SUMMARY
+        echo "**Type:** $([[ "${{ needs.validate-release.outputs.is_prerelease }}" == "true" ]] && echo "🧪 Prerelease" || echo "✅ Stable Release")" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "### Platform Upload Status" >> $GITHUB_STEP_SUMMARY
         echo "| Platform | Status | Notes |" >> $GITHUB_STEP_SUMMARY
         echo "|----------|--------|-------|" >> $GITHUB_STEP_SUMMARY
         echo "| GitHub Releases | ✅ Uploaded | Available for download |" >> $GITHUB_STEP_SUMMARY
-        echo "| CurseForge | 🔑 Auto-upload | Via BigWigs Packager (if API key set) |" >> $GITHUB_STEP_SUMMARY
-        echo "| WoWInterface | 🔑 Auto-upload | Via BigWigs Packager (if API key set) |" >> $GITHUB_STEP_SUMMARY
-        echo "| Wago | 🔑 Auto-upload | Via BigWigs Packager (if API key set) |" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        echo "### 🔧 Setup API Keys" >> $GITHUB_STEP_SUMMARY
-        echo "To enable automatic uploads to addon platforms, add these secrets:" >> $GITHUB_STEP_SUMMARY
-        echo "- \`CF_API_KEY\` for CurseForge" >> $GITHUB_STEP_SUMMARY
-        echo "- \`WOWI_API_TOKEN\` for WoWInterface" >> $GITHUB_STEP_SUMMARY
-        echo "- \`WAGO_API_TOKEN\` for Wago" >> $GITHUB_STEP_SUMMARY
+        
+        # Different upload behavior for prereleases
+        if [[ "${{ needs.validate-release.outputs.is_prerelease }}" == "true" ]]; then
+          echo "| CurseForge | ⏸️ Manual-only | Prereleases not auto-uploaded |" >> $GITHUB_STEP_SUMMARY
+          echo "| WoWInterface | ⏸️ Manual-only | Prereleases not auto-uploaded |" >> $GITHUB_STEP_SUMMARY
+          echo "| Wago | ⏸️ Manual-only | Prereleases not auto-uploaded |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### ⚠️ Prerelease Notes" >> $GITHUB_STEP_SUMMARY
+          echo "- Prereleases are **only uploaded to GitHub**" >> $GITHUB_STEP_SUMMARY
+          echo "- Manual upload to addon platforms required" >> $GITHUB_STEP_SUMMARY
+          echo "- Use for testing and development only" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "| CurseForge | 🔑 Auto-upload | Via BigWigs Packager (if API key set) |" >> $GITHUB_STEP_SUMMARY
+          echo "| WoWInterface | 🔑 Auto-upload | Via BigWigs Packager (if API key set) |" >> $GITHUB_STEP_SUMMARY
+          echo "| Wago | 🔑 Auto-upload | Via BigWigs Packager (if API key set) |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🔧 Setup API Keys" >> $GITHUB_STEP_SUMMARY
+          echo "To enable automatic uploads to addon platforms, add these secrets:" >> $GITHUB_STEP_SUMMARY
+          echo "- \`CF_API_KEY\` for CurseForge" >> $GITHUB_STEP_SUMMARY
+          echo "- \`WOWI_API_TOKEN\` for WoWInterface" >> $GITHUB_STEP_SUMMARY
+          echo "- \`WAGO_API_TOKEN\` for Wago" >> $GITHUB_STEP_SUMMARY
+        fi
  
