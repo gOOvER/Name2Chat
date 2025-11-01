@@ -2,10 +2,14 @@
 ---      Module      ---
 ------------------------
 
-Name2Chat  = LibStub("AceAddon-3.0"):NewAddon(	"Name2Chat",
-												"AceConsole-3.0",
-												"AceEvent-3.0",
-												"AceHook-3.0");
+Name2Chat = LibStub("AceAddon-3.0"):NewAddon("Name2Chat",
+											"AceConsole-3.0",
+											"AceEvent-3.0",
+											"AceHook-3.0")
+
+-- Version compatibility constants
+local INTERFACE_VERSION = select(4, GetBuildInfo())
+local IS_RETAIL = WOW_PROJECT_ID == WOW_PROJECT_MAINLINE
 
 
 ----------------------------
@@ -118,7 +122,8 @@ local SlashOptions = {
 			name = L["config"],
 			desc = L["config_desc"],
 			func = function()
-				InterfaceOptionsFrame_OpenToCategory(Name2Chat.optionFrames.main)
+				-- Use AceConfigDialog to open the options
+				LibStub("AceConfigDialog-3.0"):Open("Name2Chat Options")
 			end,
 		},
 	},
@@ -155,19 +160,28 @@ function Name2Chat:OnInitialize()
 		profiles = dialog:AddToBlizOptions(	"Name2Chat Profiles", "Profiles", "Name2Chat");
 	}
 
-	-- Hook SendChatMessage function
-	-- Feature-detect modern Chat API (Retail/DF+)
+	-- Hook SendChatMessage function with version detection
+	-- Modern API (Retail/DF+) uses C_ChatInfo.SendChatMessage
+	-- Legacy API uses global SendChatMessage function
 	self._useCChatInfo = type(C_ChatInfo) == "table" and type(C_ChatInfo.SendChatMessage) == "function"
 	if self._useCChatInfo then
 		self:RawHook(C_ChatInfo, "SendChatMessage", true)
+		self:Safe_Print("Using modern C_ChatInfo.SendChatMessage API")
 	else
 		self:RawHook("SendChatMessage", true)
+		self:Safe_Print("Using legacy SendChatMessage API")
 	end
 
-	-- get current character name
-	character_name, _ = UnitName("player")
+	-- Register event to get character name when available
+	self:RegisterEvent("PLAYER_LOGIN", "OnPlayerLogin")
 
 	self:Safe_Print(L["Loaded"])
+end
+
+function Name2Chat:OnPlayerLogin()
+	-- Get current character name once player is fully loaded
+	character_name = UnitName("player")
+	self:UnregisterEvent("PLAYER_LOGIN")
 end
 
 --------------------------------
@@ -175,36 +189,55 @@ end
 --------------------------------
 
 function Name2Chat:SendChatMessage(msg, chatType, language, channel)
-	if self.db.profile.enable then
-		if self.db.profile.name and self.db.profile.name ~= "" then
-			if (not self.db.profile.hideOnMatchingCharName) or (self.db.profile.name ~= character_name) then
+	-- Early exit if addon is disabled
+	if not self.db.profile.enable then
+		self:CallOriginalSendChatMessage(msg, chatType, language, channel)
+		return
+	end
 
-				if  (self.db.profile.guild and (chatType == "GUILD" or chatType == "OFFICER")) or
-					(self.db.profile.raid and chatType == "RAID") or
-					(self.db.profile.party and chatType == "PARTY") or
-					(self.db.profile.instance_chat and chatType == "INSTANCE_CHAT")
-				then
-					--TODO Learn how to do a not in LUA
-					if(string.starts(msg,'!keys') and self.db.profile.ignoreExclamationMark)
-					then
-						msg = msg
-					else
-						msg = "(" .. self.db.profile.name .."): " .. msg
-					end
+	-- Check if we have a valid name configured
+	if not self.db.profile.name or self.db.profile.name == "" then
+		self:CallOriginalSendChatMessage(msg, chatType, language, channel)
+		return
+	end
 
-				elseif (self.db.profile.channel ~= nil) and (self.db.profile.channel ~= "") and chatType == "CHANNEL" then
+	-- Check if we should hide the name when it matches character name
+	if self.db.profile.hideOnMatchingCharName and self.db.profile.name == character_name then
+		self:CallOriginalSendChatMessage(msg, chatType, language, channel)
+		return
+	end
 
-					local id, chname = GetChannelName(channel)
-					if strupper(self.db.profile.channel) == strupper(chname) then
-						msg = "(" .. self.db.profile.name .."): " .. msg
-					end
-				end
+	local shouldAddName = false
+	
+	-- Check if we should add name based on chat type
+	if (self.db.profile.guild and (chatType == "GUILD" or chatType == "OFFICER")) or
+	   (self.db.profile.raid and chatType == "RAID") or
+	   (self.db.profile.party and chatType == "PARTY") or
+	   (self.db.profile.instance_chat and chatType == "INSTANCE_CHAT") then
+		shouldAddName = true
+	elseif (self.db.profile.channel ~= nil) and (self.db.profile.channel ~= "") and chatType == "CHANNEL" then
+		local id, chname = GetChannelName(channel)
+		if chname and strupper(self.db.profile.channel) == strupper(chname) then
+			shouldAddName = true
+		end
+	end
 
-			end
+	-- Add name unless it's a special command and ignore option is enabled
+	if shouldAddName then
+		if self.db.profile.ignoreExclamationMark and self:StartsWithExclamation(msg) then
+			-- Don't add name for commands starting with !
+			self:Safe_Print("Ignoring message starting with exclamation mark: " .. msg)
+		else
+			msg = "(" .. self.db.profile.name .. "): " .. msg
 		end
 	end
 
 	-- Call original function
+	self:CallOriginalSendChatMessage(msg, chatType, language, channel)
+end
+
+-- Helper function to call the original SendChatMessage function
+function Name2Chat:CallOriginalSendChatMessage(msg, chatType, language, channel)
 	if self._useCChatInfo then
 		self.hooks[C_ChatInfo].SendChatMessage(msg, chatType, language, channel)
 	else
@@ -222,6 +255,15 @@ function Name2Chat:Safe_Print(msg)
 	end
 end
 
-function string.starts(String,Start)
-	return string.sub(String,1,string.len(Start))==Start
- end
+-- Local helper function to check if message starts with exclamation mark
+function Name2Chat:StartsWithExclamation(msg)
+	if not msg or msg == "" then
+		return false
+	end
+	return string.sub(msg, 1, 1) == "!"
+end
+
+-- Utility function to safely get character name
+function Name2Chat:GetCharacterName()
+	return character_name or UnitName("player") or "Unknown"
+end
