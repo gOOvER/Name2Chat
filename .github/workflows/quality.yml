@@ -24,86 +24,19 @@ jobs:
         sudo apt-get install -y lua5.1 luarocks
         sudo luarocks install luacheck
         
-    - name: Create luacheck config
+    - name: Use repository luacheck config
       run: |
-        cat > .luacheckrc << 'EOF'
-        -- LuaCheck configuration for WoW Addons
-        std = "lua51"
+        echo "Using existing .luacheckrc from repository"
+        cat .luacheckrc
         
-        -- Global WoW API functions that luacheck should ignore
-        globals = {
-          -- Core WoW Addon globals
-          "Name2Chat", "Name2ChatDB",
-          
-          -- WoW Global Functions
-          "LibStub", "GetBuildInfo", "UnitName", "GetChannelName",
-          "WOW_PROJECT_ID", "WOW_PROJECT_MAINLINE", "WOW_PROJECT_CLASSIC",
-          "WOW_PROJECT_BURNING_CRUSADE_CLASSIC", "WOW_PROJECT_WRATH_CLASSIC",
-          "WOW_PROJECT_CATACLYSM_CLASSIC",
-          
-          -- Ace3 Framework
-          "AceAddon", "AceConsole", "AceEvent", "AceHook", "AceConfig", 
-          "AceConfigDialog", "AceConfigRegistry", "AceDB", "AceDBOptions",
-          "AceLocale",
-          
-          -- WoW Chat API
-          "SendChatMessage", "C_ChatInfo", "ChatFrame_AddMessageEventFilter",
-          "ChatFrame_RemoveMessageEventFilter", "DEFAULT_CHAT_FRAME",
-          
-          -- WoW String Functions
-          "strupper", "strlower", "strsub", "strlen", "strfind", "gsub", 
-          "format", "strmatch", "gmatch", "strjoin", "strsplit",
-          
-          -- WoW Unit Functions
-          "GetRealmName", "GetLocale",
-          
-          -- Standard Lua enhanced by WoW
-          "print", "error", "type", "select", "pairs", "ipairs", "next",
-          "tostring", "tonumber", "table", "math", "bit", "time", "date",
-          "string", "unpack", "wipe", "tinsert", "tremove", "sort",
-          
-          -- Slash Commands
-          "SLASH_NAME2CHAT1", "SLASH_NAME2CHAT2", "SlashCmdList",
-          
-          -- Global WoW Environment
-          "_G", "SLASH_"
-        }
-        
-        -- Ignore warnings that are normal in WoW addon development
-        ignore = {
-          "111", -- setting non-standard global variable (addon globals)
-          "112", -- mutating non-standard global variable (addon state)
-          "113", -- accessing undefined variable (WoW API not in std)
-          "211", -- unused variable (common in WoW event handling)
-          "212", -- unused argument (self, event handlers)
-          "213", -- unused loop variable
-          "611", -- line contains only whitespace
-          "631", -- line is too long (WoW API names can be verbose)
-        }
-        
-        -- Files to check
-        files = {
-          "Name2Chat.lua"
-        }
-        
-        -- Only check our main files
-        include_files = {
-          "Name2Chat.lua",
-          "lang/*.lua"
-        }
-        
-        -- Standard globals
-        std = "lua51+wow"
-        EOF
-        
-    - name: Run luacheck with detailed output
+    - name: Run luacheck with repository config
       run: |
-        echo "Running luacheck on Lua files..."
-        luacheck --no-color --formatter=plain Name2Chat.lua || true
+        echo "Running luacheck with .luacheckrc configuration..."
+        luacheck --no-color --codes Name2Chat.lua
         
         if [ -d "lang" ]; then
           echo "Checking locale files..."
-          luacheck --no-color --formatter=plain lang/*.lua || true
+          luacheck --no-color --codes lang/*.lua || true
         fi
         
     - name: Generate code quality report
