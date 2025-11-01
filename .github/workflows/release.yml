@@ -356,7 +356,6 @@ jobs:
         name: Name2Chat-${{ needs.validate-release.outputs.version }}-bigwigs
         path: ./artifacts
       continue-on-error: true
-      if: needs.package-addon.outputs.bigwigs_available == 'true'
         
     - name: Download manual package artifact
       id: download_manual
@@ -365,13 +364,36 @@ jobs:
         name: Name2Chat-${{ needs.validate-release.outputs.version }}-manual
         path: ./artifacts
       continue-on-error: true
-      if: needs.package-addon.outputs.manual_package_created == 'true'
         
     - name: Emergency package creation
-      if: steps.download_bigwigs.outcome == 'failure' && steps.download_manual.outcome == 'failure'
+      if: always()
       id: emergency_package
       run: |
-        echo "🚨 Both artifact downloads failed - creating emergency package"
+        # Check if we successfully downloaded any artifacts
+        BIGWIGS_OUTCOME="${{ steps.download_bigwigs.outcome }}"
+        MANUAL_OUTCOME="${{ steps.download_manual.outcome }}"
+        
+        echo "Download outcomes:"
+        echo "- BigWigs: $BIGWIGS_OUTCOME"
+        echo "- Manual: $MANUAL_OUTCOME"
+        
+        # Check if artifacts directory exists and has files
+        ARTIFACTS_EXIST="false"
+        if [ -d "./artifacts" ] && [ "$(find ./artifacts -name "*.zip" | wc -l)" -gt 0 ]; then
+          echo "✅ Artifacts directory found with ZIP files"
+          ARTIFACTS_EXIST="true"
+        else
+          echo "❌ No artifacts directory or no ZIP files found"
+        fi
+        
+        # Only create emergency package if no artifacts were successfully downloaded
+        if [[ "$ARTIFACTS_EXIST" == "true" ]]; then
+          echo "✅ Artifacts available, skipping emergency package creation"
+          echo "emergency_package=false" >> $GITHUB_OUTPUT
+          exit 0
+        fi
+        
+        echo "🚨 No artifacts available - creating emergency package"
         VERSION="${{ needs.validate-release.outputs.version }}"
         PACKAGE_NAME="Name2Chat-$VERSION"
         
