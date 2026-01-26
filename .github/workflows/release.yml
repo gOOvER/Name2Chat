@@ -1,5 +1,8 @@
 name: Release
 
+permissions:
+  contents: write
+
 on:
   push:
     tags:
@@ -7,7 +10,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version to release (e.g., 3.5.5 or 3.6.0-beta1)'
+        description: 'Version to release (e.g., 4.0.0 or 4.0.0-beta1). Use "auto" to read from CHANGELOG.md'
         required: true
         type: string
       create_tag:
@@ -51,6 +54,15 @@ jobs:
         else
           # Use manual input
           VERSION="${{ github.event.inputs.version }}"
+          
+          # Allow automatic version detection from CHANGELOG when requested
+          if [[ -z "$VERSION" || "$VERSION" == "auto" ]]; then
+            if [ -f CHANGELOG.md ]; then
+              VERSION=$(awk '/^## Version / {print $3; exit}' CHANGELOG.md)
+              echo "ℹ️ Auto-detected version from CHANGELOG.md: $VERSION"
+            fi
+          fi
+
           TAG_NAME="v$VERSION"
           IS_PRERELEASE="${{ github.event.inputs.prerelease }}"
         fi
@@ -157,6 +169,19 @@ jobs:
         # Verify the version was updated
         echo "Updated TOC version line:"
         grep "## Version:" Name2Chat.toc
+
+    - name: Create local tag for packager
+      run: |
+        VERSION="${{ needs.validate-release.outputs.version }}"
+        TAG_NAME="v$VERSION"
+
+        # Ensure a local tag exists so BigWigs Packager uses the current version
+        if git rev-parse "$TAG_NAME" >/dev/null 2>&1; then
+          echo "Tag $TAG_NAME already exists locally"
+        else
+          git tag -a "$TAG_NAME" -m "Release version $VERSION"
+          echo "Created local tag $TAG_NAME for packaging"
+        fi
         
     - name: Validate TOC file structure
       run: |

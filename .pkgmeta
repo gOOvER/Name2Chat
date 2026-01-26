@@ -50,3 +50,6 @@ externals:
         
 manual-changelog: CHANGELOG.md
 license-output: LICENSE.txt
+
+ignore:
+    - scripts/**
