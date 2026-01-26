@@ -497,6 +497,31 @@ jobs:
         echo "Generating release notes for version $VERSION"
         echo "Previous tag: $PREVIOUS_TAG"
         
+        # Extract changelog for this version from CHANGELOG.md
+        CHANGELOG_CONTENT=""
+        if [ -f "CHANGELOG.md" ]; then
+          echo "📄 Extracting changelog for version $VERSION from CHANGELOG.md..."
+          
+          # Extract the section for this version
+          CHANGELOG_CONTENT=$(awk -v version="$VERSION" '
+            BEGIN { found=0; capturing=0; }
+            /^## Version / {
+              if (capturing) exit;
+              if (index($0, version) > 0) {
+                capturing=1;
+                next;
+              }
+            }
+            capturing { print; }
+          ' CHANGELOG.md)
+          
+          if [ -n "$CHANGELOG_CONTENT" ]; then
+            echo "✅ Found changelog entry for version $VERSION"
+          else
+            echo "⚠️ No changelog entry found for version $VERSION"
+          fi
+        fi
+        
         # Generate changelog from git commits
         if [ -n "$PREVIOUS_TAG" ]; then
           echo "📝 Generating changelog from $PREVIOUS_TAG to current..."
@@ -539,9 +564,17 @@ jobs:
         
         ### 🔄 What's New in this Prerelease
         
-        **Changes since last version** ($COMMIT_COUNT commits):
-        
-        $COMMITS
+        EOF
+          
+          if [ -n "$CHANGELOG_CONTENT" ]; then
+            echo "$CHANGELOG_CONTENT" >> release_notes.md
+          else
+            echo "**Changes since last version** ($COMMIT_COUNT commits):" >> release_notes.md
+            echo "" >> release_notes.md
+            echo "$COMMITS" >> release_notes.md
+          fi
+          
+          cat >> release_notes.md << EOF
         
         ### 🧪 Testing Focus Areas
         - **Multi-version compatibility** (test on different WoW versions)
@@ -601,9 +634,17 @@ jobs:
         
         ### 🆕 What's New in v$VERSION
         
-        **Changes in this release** ($COMMIT_COUNT updates since $PREVIOUS_TAG):
-        
-        $COMMITS
+        EOF
+          
+          if [ -n "$CHANGELOG_CONTENT" ]; then
+            echo "$CHANGELOG_CONTENT" >> release_notes.md
+          else
+            echo "**Changes in this release** ($COMMIT_COUNT updates since $PREVIOUS_TAG):" >> release_notes.md
+            echo "" >> release_notes.md
+            echo "$COMMITS" >> release_notes.md
+          fi
+          
+          cat >> release_notes.md << EOF
         
         ### 🔧 Core Features
         - ✨ **Automatic Name Addition** - Adds your character name to chat messages
@@ -661,7 +702,7 @@ jobs:
         echo "release_notes_file=release_notes.md" >> $GITHUB_OUTPUT
         
     - name: Create GitHub Release
-      uses: softprops/action-gh-release@v1
+      uses: softprops/action-gh-release@v2
       with:
         tag_name: ${{ needs.validate-release.outputs.tag_name }}
         name: Name2Chat v${{ needs.validate-release.outputs.version }}

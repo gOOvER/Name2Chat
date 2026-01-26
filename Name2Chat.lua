@@ -8,8 +8,15 @@ Name2Chat = LibStub("AceAddon-3.0"):NewAddon("Name2Chat",
 											"AceHook-3.0")
 
 -- Version compatibility constants
+-- Patch 12.0.0 (Midnight) introduces Secret Values system for combat info protection
+-- C_ChatInfo.SendChatMessage remains available and unchanged
+-- Classic variants use legacy SendChatMessage API
 local INTERFACE_VERSION = select(4, GetBuildInfo())
-local IS_RETAIL = WOW_PROJECT_ID == WOW_PROJECT_MAINLINE
+local IS_RETAIL = (WOW_PROJECT_ID == WOW_PROJECT_MAINLINE) or (WOW_PROJECT_ID == nil and INTERFACE_VERSION >= 100000)
+local IS_CLASSIC = WOW_PROJECT_ID == WOW_PROJECT_CLASSIC or INTERFACE_VERSION < 20000
+local IS_TBC = WOW_PROJECT_ID == WOW_PROJECT_BURNING_CRUSADE_CLASSIC or (INTERFACE_VERSION >= 20000 and INTERFACE_VERSION < 30000)
+local IS_WRATH = WOW_PROJECT_ID == WOW_PROJECT_WRATH_CLASSIC or (INTERFACE_VERSION >= 30000 and INTERFACE_VERSION < 40000)
+local IS_CATA = WOW_PROJECT_ID == WOW_PROJECT_CATACLYSM_CLASSIC or (INTERFACE_VERSION >= 40000 and INTERFACE_VERSION < 100000)
 
 
 ----------------------------
@@ -161,15 +168,36 @@ function Name2Chat:OnInitialize()
 	}
 
 	-- Hook SendChatMessage function with version detection
-	-- Modern API (Retail/DF+) uses C_ChatInfo.SendChatMessage
-	-- Legacy API uses global SendChatMessage function
-	self._useCChatInfo = type(C_ChatInfo) == "table" and type(C_ChatInfo.SendChatMessage) == "function"
+	-- Modern API (Retail 10.0+) uses C_ChatInfo.SendChatMessage
+	-- Legacy API (Classic, TBC, Wrath, Cata) uses global SendChatMessage function
+	self._useCChatInfo = IS_RETAIL and C_ChatInfo and type(C_ChatInfo.SendChatMessage) == "function"
+	
 	if self._useCChatInfo then
-		self:RawHook(C_ChatInfo, "SendChatMessage", true)
-		self:Safe_Print("Using modern C_ChatInfo.SendChatMessage API")
+		local success = pcall(function()
+			self:RawHook(C_ChatInfo, "SendChatMessage", true)
+		end)
+		if success then
+			local versionStr = INTERFACE_VERSION >= 120000 and "Midnight 12.0.1+" or "DF/TWW"
+			self:Safe_Print("Using modern C_ChatInfo.SendChatMessage API (" .. versionStr .. ", Interface: " .. INTERFACE_VERSION .. ")")
+		else
+			self:Print("Warning: Failed to hook C_ChatInfo.SendChatMessage")
+			self._useCChatInfo = false
+		end
 	else
-		self:RawHook("SendChatMessage", true)
-		self:Safe_Print("Using legacy SendChatMessage API")
+		local success = pcall(function()
+			self:RawHook("SendChatMessage", true)
+		end)
+		if success then
+			local clientType = "Unknown"
+			if IS_CLASSIC then clientType = "Classic Era"
+			elseif IS_TBC then clientType = "TBC Classic"
+			elseif IS_WRATH then clientType = "Wrath Classic"
+			elseif IS_CATA then clientType = "Cata Classic"
+			end
+			self:Safe_Print("Using legacy SendChatMessage API (" .. clientType .. ", Interface: " .. INTERFACE_VERSION .. ")")
+		else
+			self:Print("Warning: Failed to hook SendChatMessage")
+		end
 	end
 
 	-- Register event to get character name when available
