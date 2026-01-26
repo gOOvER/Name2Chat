@@ -1,4 +1,3 @@
-## Interface: 120001
 ## Interface-Retail: 120001
 ## Interface-Classic: 11508
 ## Interface-BCC: 20504

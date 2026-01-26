@@ -119,12 +119,12 @@ jobs:
       run: |
         echo "Checking interface version compatibility..."
         
-        # Extract interface versions from TOC
-        RETAIL_INTERFACE=$(grep "## Interface-Retail:" Name2Chat.toc | cut -d' ' -f3 || grep "## Interface:" Name2Chat.toc | cut -d' ' -f3)
-        CLASSIC_INTERFACE=$(grep "## Interface-Classic:" Name2Chat.toc | cut -d' ' -f3)
-        BCC_INTERFACE=$(grep "## Interface-BCC:" Name2Chat.toc | cut -d' ' -f3)
-        WRATH_INTERFACE=$(grep "## Interface-Wrath:" Name2Chat.toc | cut -d' ' -f3)
-        CATA_INTERFACE=$(grep "## Interface-Cata:" Name2Chat.toc | cut -d' ' -f3)
+        # Extract interface versions from TOC (use head -1 to get only first match)
+        RETAIL_INTERFACE=$(grep "## Interface-Retail:" Name2Chat.toc | head -1 | cut -d' ' -f3)
+        CLASSIC_INTERFACE=$(grep "## Interface-Classic:" Name2Chat.toc | head -1 | cut -d' ' -f3)
+        BCC_INTERFACE=$(grep "## Interface-BCC:" Name2Chat.toc | head -1 | cut -d' ' -f3)
+        WRATH_INTERFACE=$(grep "## Interface-Wrath:" Name2Chat.toc | head -1 | cut -d' ' -f3)
+        CATA_INTERFACE=$(grep "## Interface-Cata:" Name2Chat.toc | head -1 | cut -d' ' -f3)
         
         echo "Interface versions found:"
         echo "  Retail: $RETAIL_INTERFACE"
@@ -133,10 +133,11 @@ jobs:
         echo "  Wrath: $WRATH_INTERFACE"
         echo "  Cata: $CATA_INTERFACE"
         
-        # Validate version format (should be numeric)
+        # Validate version format (should be numeric, 5-6 digits for WoW interface versions)
         for version in "$RETAIL_INTERFACE" "$CLASSIC_INTERFACE" "$BCC_INTERFACE" "$WRATH_INTERFACE" "$CATA_INTERFACE"; do
-          if [[ -n "$version" ]] && [[ ! "$version" =~ ^[0-9]+$ ]]; then
-            echo "✗ Invalid interface version format: $version"
+          if [[ -n "$version" ]] && [[ ! "$version" =~ ^[0-9]{5,6}$ ]]; then
+            echo "✗ Invalid TOC interface version format: $version"
+            echo "Expected: 5-6 digit number (e.g., 110207, 120001, 11508)"
             exit 1
           fi
         done
