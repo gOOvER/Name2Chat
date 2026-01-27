@@ -226,8 +226,8 @@ function Name2Chat:SendChatMessage(msg, chatType, language, channel)
 		end
 	end
 
-	-- Call original function via ChatCompat
-	return ChatCompat:Send(msg, chatType, language, channel)
+	-- Call original function directly to avoid re-entering the hook
+	return self:CallOriginalSendChatMessage(msg, chatType, language, channel)
 end
 
 -- Helper function to call the original SendChatMessage function
