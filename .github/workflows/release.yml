@@ -101,7 +101,8 @@ jobs:
       run: |
         VERSION="${{ steps.version.outputs.version }}"
         IS_PRERELEASE="${{ steps.version.outputs.is_prerelease }}"
-        TOC_VERSION=$(grep "## Version:" Name2Chat.toc | cut -d' ' -f3)
+        # Trim CRLF and spaces to avoid Windows line ending issues
+        TOC_VERSION=$(grep "## Version:" Name2Chat.toc | head -1 | cut -d' ' -f3 | tr -d '\r\n ')
         
         # For prereleases, allow TOC version to be different (development version)
         if [[ "$IS_PRERELEASE" == "true" ]]; then
