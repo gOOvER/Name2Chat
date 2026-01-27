@@ -237,7 +237,8 @@ jobs:
         CF_API_KEY: ${{ needs.validate-release.outputs.is_prerelease == 'true' && '' || secrets.CF_API_KEY }}
         WAGO_API_TOKEN: ${{ needs.validate-release.outputs.is_prerelease == 'true' && '' || secrets.WAGO_API_TOKEN }}
         WOWI_API_TOKEN: ${{ needs.validate-release.outputs.is_prerelease == 'true' && '' || secrets.WOWI_API_TOKEN }}
-        GITHUB_OAUTH: ${{ secrets.GITHUB_TOKEN }}
+        # Disable GitHub Release upload by BigWigs Packager; we handle GH release separately
+        GITHUB_OAUTH: ''
       continue-on-error: true
         
     - name: Manual package fallback
