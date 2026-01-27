@@ -17,5 +17,6 @@
 embeds.xml
 #@end-no-lib-strip@
 
+ChatCompat.lua
 locale.xml
 Name2Chat.lua

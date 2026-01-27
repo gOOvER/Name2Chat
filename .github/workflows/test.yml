@@ -33,7 +33,7 @@ jobs:
         # Validate TOC file format
         if [ -f "Name2Chat.toc" ]; then
           echo "✓ TOC file exists"
-          grep -q "## Interface-Retail:" Name2Chat.toc && echo "✓ Interface version found" || exit 1
+          grep -q "## Interface:" Name2Chat.toc && echo "✓ Interface version found" || exit 1
           grep -q "## Title:" Name2Chat.toc && echo "✓ Title found" || exit 1
           grep -q "## Version:" Name2Chat.toc && echo "✓ Version found" || exit 1
         else
