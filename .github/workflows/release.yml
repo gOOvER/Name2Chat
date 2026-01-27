@@ -319,7 +319,7 @@ jobs:
         fi
         
     - name: Upload manual package artifact
-      if: steps.manual_package.outputs.manual_package_created == 'true'
+      if: ${{ steps.manual_package.outputs.manual_package_created == 'true' }}
       uses: actions/upload-artifact@v4
       with:
         name: Name2Chat-${{ needs.validate-release.outputs.version }}-manual
@@ -327,7 +327,7 @@ jobs:
         retention-days: 90
         
     - name: Upload BigWigs package artifact
-      if: steps.bigwigs_package.outcome == 'success' && steps.manual_package.outputs.manual_package_created != 'true'
+      if: ${{ steps.bigwigs_package.outcome == 'success' && steps.manual_package.outputs.manual_package_created != 'true' }}
       uses: actions/upload-artifact@v4
       with:
         name: Name2Chat-${{ needs.validate-release.outputs.version }}-bigwigs
@@ -376,7 +376,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [validate-release, package-addon]
     # Skip bot-triggered push (second run after workflow-created tag)
-    if: always() && needs.validate-release.result == 'success' && needs.package-addon.result == 'success' && !(github.event_name == 'push' && github.actor == 'github-actions[bot]')
+    if: ${{ always() && needs.validate-release.result == 'success' && needs.package-addon.result == 'success' && !(github.event_name == 'push' && github.actor == 'github-actions[bot]') }}
     
     steps:
     - name: Checkout code
