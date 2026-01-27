@@ -1,5 +1,31 @@
 # Name2Chat Changelog
 
+## Version 4.0.2-beta1 (27.01.2026)
+
+### New Features
+- **ChatCompat Abstraction Layer**: New mini-library for unified Chat API management
+  - Automatic feature detection for Retail/Classic APIs
+  - Centralized handling of all version differences
+  - Reusable for other addons via LibStub
+
+### Improvements
+- **Code Refactoring**: Use of ChatCompat for clean API abstraction
+  - Removal of redundant Retail/Classic checks
+  - Simplified hook mechanism
+  - Better maintainability and readability
+- **TOC Format Update**: Consolidated to modern single-interface format (Patch 10.2.7+)
+  - Added `LoadSavedVariablesFirst`
+  - Added `AllowAddOnTableAccess` for C_AddOns compatibility
+- **Documentation**: Thorough commenting for Copilot-friendly structure
+
+### Technical Changes
+- New file: `ChatCompat.lua` for API abstraction layer
+- Updated `Name2Chat.lua` to use ChatCompat
+- Updated `embeds.xml` to load ChatCompat
+- Simplified hook management via `ChatCompat:HookSendChatMessage()`
+
+---
+
 ## Version 4.0.0 (26.01.2026)
 
 ### Major Updates

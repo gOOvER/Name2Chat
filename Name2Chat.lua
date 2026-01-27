@@ -7,16 +7,8 @@ Name2Chat = LibStub("AceAddon-3.0"):NewAddon("Name2Chat",
 											"AceEvent-3.0",
 											"AceHook-3.0")
 
--- Version compatibility constants
--- Patch 12.0.0 (Midnight) introduces Secret Values system for combat info protection
--- C_ChatInfo.SendChatMessage remains available and unchanged
--- Classic variants use legacy SendChatMessage API
-local INTERFACE_VERSION = select(4, GetBuildInfo())
-local IS_RETAIL = (WOW_PROJECT_ID == WOW_PROJECT_MAINLINE) or (WOW_PROJECT_ID == nil and INTERFACE_VERSION >= 100000)
-local IS_CLASSIC = WOW_PROJECT_ID == WOW_PROJECT_CLASSIC or INTERFACE_VERSION < 20000
-local IS_TBC = WOW_PROJECT_ID == WOW_PROJECT_BURNING_CRUSADE_CLASSIC or (INTERFACE_VERSION >= 20000 and INTERFACE_VERSION < 30000)
-local IS_WRATH = WOW_PROJECT_ID == WOW_PROJECT_WRATH_CLASSIC or (INTERFACE_VERSION >= 30000 and INTERFACE_VERSION < 40000)
-local IS_CATA = WOW_PROJECT_ID == WOW_PROJECT_CATACLYSM_CLASSIC or (INTERFACE_VERSION >= 40000 and INTERFACE_VERSION < 100000)
+-- Lade ChatCompat für vereinheitlichte Chat-API
+local ChatCompat = LibStub("ChatCompat")
 
 
 ----------------------------
@@ -167,37 +159,16 @@ function Name2Chat:OnInitialize()
 		profiles = dialog:AddToBlizOptions(	"Name2Chat Profiles", "Profiles", "Name2Chat");
 	}
 
-	-- Hook SendChatMessage function with version detection
-	-- Modern API (Retail 10.0+) uses C_ChatInfo.SendChatMessage
-	-- Legacy API (Classic, TBC, Wrath, Cata) uses global SendChatMessage function
-	self._useCChatInfo = IS_RETAIL and C_ChatInfo and type(C_ChatInfo.SendChatMessage) == "function"
+	-- Hook SendChatMessage mittels ChatCompat
+	-- ChatCompat kümmert sich automatisch um Retail/Classic Unterschiede
+	ChatCompat:HookSendChatMessage(self)
 	
-	if self._useCChatInfo then
-		local success = pcall(function()
-			self:RawHook(C_ChatInfo, "SendChatMessage", true)
-		end)
-		if success then
-			local versionStr = INTERFACE_VERSION >= 120000 and "Midnight 12.0.1+" or "DF/TWW"
-			self:Safe_Print("Using modern C_ChatInfo.SendChatMessage API (" .. versionStr .. ", Interface: " .. INTERFACE_VERSION .. ")")
-		else
-			self:Print("Warning: Failed to hook C_ChatInfo.SendChatMessage")
-			self._useCChatInfo = false
-		end
+	-- Debug info
+	local apiInfo = ChatCompat:GetApiInfo()
+	if apiInfo.useCChatInfo then
+		self:Safe_Print("Chat-API: C_ChatInfo.SendChatMessage (Retail/Wrath+)")
 	else
-		local success = pcall(function()
-			self:RawHook("SendChatMessage", true)
-		end)
-		if success then
-			local clientType = "Unknown"
-			if IS_CLASSIC then clientType = "Classic Era"
-			elseif IS_TBC then clientType = "TBC Classic"
-			elseif IS_WRATH then clientType = "Wrath Classic"
-			elseif IS_CATA then clientType = "Cata Classic"
-			end
-			self:Safe_Print("Using legacy SendChatMessage API (" .. clientType .. ", Interface: " .. INTERFACE_VERSION .. ")")
-		else
-			self:Print("Warning: Failed to hook SendChatMessage")
-		end
+		self:Safe_Print("Chat-API: SendChatMessage (Classic Era/TBC/Cata)")
 	end
 
 	-- Register event to get character name when available
@@ -219,31 +190,26 @@ end
 function Name2Chat:SendChatMessage(msg, chatType, language, channel)
 	-- Early exit if addon is disabled
 	if not self.db.profile.enable then
-		self:CallOriginalSendChatMessage(msg, chatType, language, channel)
-		return
+		return self:CallOriginalSendChatMessage(msg, chatType, language, channel)
 	end
 
 	-- Check if we have a valid name configured
 	if not self.db.profile.name or self.db.profile.name == "" then
-		self:CallOriginalSendChatMessage(msg, chatType, language, channel)
-		return
+		return self:CallOriginalSendChatMessage(msg, chatType, language, channel)
 	end
 
 	-- Check if we should hide the name when it matches character name
 	if self.db.profile.hideOnMatchingCharName and self.db.profile.name == character_name then
-		self:CallOriginalSendChatMessage(msg, chatType, language, channel)
-		return
+		return self:CallOriginalSendChatMessage(msg, chatType, language, channel)
 	end
 
 	local shouldAddName = false
 	
-	-- Check if we should add name based on chat type
-	if (self.db.profile.guild and (chatType == "GUILD" or chatType == "OFFICER")) or
-	   (self.db.profile.raid and chatType == "RAID") or
-	   (self.db.profile.party and chatType == "PARTY") or
-	   (self.db.profile.instance_chat and chatType == "INSTANCE_CHAT") then
+	-- Nutze ChatCompat für Chat-Typ Prüfung
+	if ChatCompat:IsSupportedChatType(chatType, self.db.profile) then
 		shouldAddName = true
 	elseif (self.db.profile.channel ~= nil) and (self.db.profile.channel ~= "") and chatType == "CHANNEL" then
+		-- Spezial-Handling für Custom Channels
 		local id, chname = GetChannelName(channel)
 		if chname and strupper(self.db.profile.channel) == strupper(chname) then
 			shouldAddName = true
@@ -260,16 +226,17 @@ function Name2Chat:SendChatMessage(msg, chatType, language, channel)
 		end
 	end
 
-	-- Call original function
-	self:CallOriginalSendChatMessage(msg, chatType, language, channel)
+	-- Call original function via ChatCompat
+	return ChatCompat:Send(msg, chatType, language, channel)
 end
 
 -- Helper function to call the original SendChatMessage function
 function Name2Chat:CallOriginalSendChatMessage(msg, chatType, language, channel)
-	if self._useCChatInfo then
-		self.hooks[C_ChatInfo].SendChatMessage(msg, chatType, language, channel)
+	-- Nutze die hooks um die ursprüngliche Funktion aufzurufen
+	if ChatCompat.api.useCChatInfo then
+		return self.hooks[C_ChatInfo].SendChatMessage(msg, chatType, language, channel)
 	else
-		self.hooks.SendChatMessage(msg, chatType, language, channel)
+		return self.hooks.SendChatMessage(msg, chatType, language, channel)
 	end
 end
 
