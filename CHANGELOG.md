@@ -1,6 +1,6 @@
 # Name2Chat Changelog
 
-## Version 4.0.0-beta3 (27.01.2026)
+## Version 4.0.2-beta3 (27.01.2026)
 
 ### Bug Fixes
 - **SendChatMessage Hook Recursion**: Prevented re-entrance that caused "script ran too long" errors when sending chat messages

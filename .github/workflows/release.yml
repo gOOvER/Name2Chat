@@ -28,6 +28,8 @@ jobs:
   validate-release:
     name: Validate Release
     runs-on: ubuntu-latest
+    # Skip bot-triggered push (second run after workflow-created tag)
+    if: ${{ !(github.event_name == 'push' && github.actor == 'github-actions[bot]') }}
     outputs:
       version: ${{ steps.version.outputs.version }}
       tag_name: ${{ steps.version.outputs.tag_name }}
@@ -148,6 +150,8 @@ jobs:
     name: Package Addon
     runs-on: ubuntu-latest
     needs: validate-release
+    # Skip bot-triggered push (second run after workflow-created tag)
+    if: ${{ !(github.event_name == 'push' && github.actor == 'github-actions[bot]') }}
     outputs:
       manual_package_created: ${{ steps.manual_package.outputs.manual_package_created }}
       bigwigs_success: ${{ steps.bigwigs_package.outcome }}
@@ -371,7 +375,8 @@ jobs:
     name: Create GitHub Release
     runs-on: ubuntu-latest
     needs: [validate-release, package-addon]
-    if: always() && needs.validate-release.result == 'success' && needs.package-addon.result == 'success'
+    # Skip bot-triggered push (second run after workflow-created tag)
+    if: always() && needs.validate-release.result == 'success' && needs.package-addon.result == 'success' && !(github.event_name == 'push' && github.actor == 'github-actions[bot]')
     
     steps:
     - name: Checkout code
