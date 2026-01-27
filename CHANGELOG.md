@@ -1,5 +1,15 @@
 # Name2Chat Changelog
 
+## Version 4.0.2-beta2 (27.01.2026)
+
+### Bug Fixes
+- **ChatCompat LibStub Registration**: Fixed critical error "attempt to call method 'HookSendChatMessage' (a nil value)"
+  - Corrected LibStub registration mechanism in `ChatCompat.lua`
+  - Proper function copying to library table
+  - Addon now loads correctly on all WoW versions
+
+---
+
 ## Version 4.0.2-beta1 (27.01.2026)
 
 ### New Features

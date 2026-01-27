@@ -109,14 +109,14 @@ end
 ---------------------------------------------------------------------
 -- Registration as LibStub for other addons
 ---------------------------------------------------------------------
-if not ChatCompat.version then
-    ChatCompat.version = 1
+local MAJOR, MINOR = "ChatCompat", 1
+local ChatCompatLib = LibStub:NewLibrary(MAJOR, MINOR)
+
+if not ChatCompatLib then return end
+
+-- Copy all functions to the library table
+for k, v in pairs(ChatCompat) do
+    ChatCompatLib[k] = v
 end
 
-local function InitChatCompat()
-    return ChatCompat
-end
-
-LibStub:NewLibrary("ChatCompat", ChatCompat.version, InitChatCompat)
-
-return ChatCompat
+return ChatCompatLib
