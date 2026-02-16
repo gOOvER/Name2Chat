@@ -187,8 +187,8 @@ function Name2Chat:HookChatEditBoxes()
 	for i = 1, NUM_CHAT_WINDOWS do
 		local editBox = _G["ChatFrame" .. i .. "EditBox"]
 		if editBox and not editBox.name2chat_hooked then
-			editBox:HookScript("OnEnterPressed", function(self)
-				Name2Chat:OnChatEnterPressed(self)
+			editBox:HookScript("OnEnterPressed", function(eb)
+				Name2Chat:OnChatEnterPressed(eb)
 			end)
 			editBox.name2chat_hooked = true
 		end
@@ -196,8 +196,8 @@ function Name2Chat:HookChatEditBoxes()
 	
 	-- Also hook the general chat edit box if it exists separately
 	if ChatFrame1EditBox and not ChatFrame1EditBox.name2chat_hooked then
-		ChatFrame1EditBox:HookScript("OnEnterPressed", function(self)
-			Name2Chat:OnChatEnterPressed(self)
+		ChatFrame1EditBox:HookScript("OnEnterPressed", function(eb)
+			Name2Chat:OnChatEnterPressed(eb)
 		end)
 		ChatFrame1EditBox.name2chat_hooked = true
 	end
