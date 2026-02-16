@@ -159,17 +159,11 @@ function Name2Chat:OnInitialize()
 		profiles = dialog:AddToBlizOptions(	"Name2Chat Profiles", "Profiles", "Name2Chat");
 	}
 
-	-- Hook SendChatMessage mittels ChatCompat
-	-- ChatCompat kümmert sich automatisch um Retail/Classic Unterschiede
-	ChatCompat:HookSendChatMessage(self)
+	-- Hook all chat edit boxes to modify text BEFORE sending
+	-- This avoids protected function issues in instances/M+
+	self:HookChatEditBoxes()
 	
-	-- Debug info
-	local apiInfo = ChatCompat:GetApiInfo()
-	if apiInfo.useCChatInfo then
-		self:Safe_Print("Chat-API: C_ChatInfo.SendChatMessage (Retail/Wrath+)")
-	else
-		self:Safe_Print("Chat-API: SendChatMessage (Classic Era/TBC/Cata)")
-	end
+	self:Safe_Print("Using OnEnterPressed hook (pre-send modification)")
 
 	-- Register event to get character name when available
 	self:RegisterEvent("PLAYER_LOGIN", "OnPlayerLogin")
@@ -177,42 +171,82 @@ function Name2Chat:OnInitialize()
 	self:Safe_Print(L["Loaded"])
 end
 
+--------------------------------
+---      Event Handlers      ---
+--------------------------------
+
 function Name2Chat:OnPlayerLogin()
 	-- Get current character name once player is fully loaded
 	character_name = UnitName("player")
 	self:UnregisterEvent("PLAYER_LOGIN")
 end
 
---------------------------------
----      Event Handlers      ---
---------------------------------
+-- Hook all chat edit boxes to modify text before sending
+function Name2Chat:HookChatEditBoxes()
+	-- Hook all existing chat frames
+	for i = 1, NUM_CHAT_WINDOWS do
+		local editBox = _G["ChatFrame" .. i .. "EditBox"]
+		if editBox and not editBox.name2chat_hooked then
+			editBox:HookScript("OnEnterPressed", function(self)
+				Name2Chat:OnChatEnterPressed(self)
+			end)
+			editBox.name2chat_hooked = true
+		end
+	end
+	
+	-- Also hook the general chat edit box if it exists separately
+	if ChatFrame1EditBox and not ChatFrame1EditBox.name2chat_hooked then
+		ChatFrame1EditBox:HookScript("OnEnterPressed", function(self)
+			Name2Chat:OnChatEnterPressed(self)
+		end)
+		ChatFrame1EditBox.name2chat_hooked = true
+	end
+end
 
-function Name2Chat:SendChatMessage(msg, chatType, language, channel)
+-- Called when user presses Enter in chat - modify text BEFORE it's sent
+function Name2Chat:OnChatEnterPressed(editBox)
 	-- Early exit if addon is disabled
 	if not self.db.profile.enable then
-		return self:CallOriginalSendChatMessage(msg, chatType, language, channel)
+		return
 	end
 
 	-- Check if we have a valid name configured
 	if not self.db.profile.name or self.db.profile.name == "" then
-		return self:CallOriginalSendChatMessage(msg, chatType, language, channel)
+		return
 	end
 
 	-- Check if we should hide the name when it matches character name
 	if self.db.profile.hideOnMatchingCharName and self.db.profile.name == character_name then
-		return self:CallOriginalSendChatMessage(msg, chatType, language, channel)
+		return
 	end
 
+	-- Get the message text
+	local msg = editBox:GetText()
+	
+	-- Ignore empty messages
+	if not msg or msg == "" then
+		return
+	end
+	
+	-- Determine chat type from edit box
+	local chatType = editBox:GetAttribute("chatType")
+	if not chatType then
+		chatType = "SAY"
+	end
+	
 	local shouldAddName = false
 	
-	-- Nutze ChatCompat für Chat-Typ Prüfung
+	-- Check if this chat type should have the name added
 	if ChatCompat:IsSupportedChatType(chatType, self.db.profile) then
 		shouldAddName = true
 	elseif (self.db.profile.channel ~= nil) and (self.db.profile.channel ~= "") and chatType == "CHANNEL" then
-		-- Spezial-Handling für Custom Channels
-		local id, chname = GetChannelName(channel)
-		if chname and strupper(self.db.profile.channel) == strupper(chname) then
-			shouldAddName = true
+		-- Special handling for custom channels
+		local channelNum = editBox:GetAttribute("channelTarget")
+		if channelNum then
+			local id, chname = GetChannelName(channelNum)
+			if chname and strupper(self.db.profile.channel) == strupper(chname) then
+				shouldAddName = true
+			end
 		end
 	end
 
@@ -222,21 +256,12 @@ function Name2Chat:SendChatMessage(msg, chatType, language, channel)
 			-- Don't add name for commands starting with !
 			self:Safe_Print("Ignoring message starting with exclamation mark: " .. msg)
 		else
-			msg = "(" .. self.db.profile.name .. "): " .. msg
+			-- Modify the text in the editbox BEFORE it's sent
+			-- This happens before any protected functions are called
+			local newMsg = "(" .. self.db.profile.name .. "): " .. msg
+			editBox:SetText(newMsg)
+			self:Safe_Print("Modified message: " .. newMsg)
 		end
-	end
-
-	-- Call original function directly to avoid re-entering the hook
-	return self:CallOriginalSendChatMessage(msg, chatType, language, channel)
-end
-
--- Helper function to call the original SendChatMessage function
-function Name2Chat:CallOriginalSendChatMessage(msg, chatType, language, channel)
-	-- Nutze die hooks um die ursprüngliche Funktion aufzurufen
-	if ChatCompat.api.useCChatInfo then
-		return self.hooks[C_ChatInfo].SendChatMessage(msg, chatType, language, channel)
-	else
-		return self.hooks.SendChatMessage(msg, chatType, language, channel)
 	end
 end
 

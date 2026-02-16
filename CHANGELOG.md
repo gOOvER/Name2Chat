@@ -1,31 +1,38 @@
 # Name2Chat Changelog
 
-## Version 4.0.2-beta3 (27.01.2026)
+## Version 4.0.3 (16.02.2026)
 
 ### Bug Fixes
-- **SendChatMessage Hook Recursion**: Prevented re-entrance that caused "script ran too long" errors when sending chat messages
-  - Calls the stored original API instead of the hooked wrapper
-  - Fixes execution stall on message send across all supported clients
+- **ADDON_ACTION_FORBIDDEN in Protected Environments**: Fixed critical error when sending messages in M+, raids, and PvP
+  - Changed from hooking `SendChatMessage`/`ChatEdit_SendText` to using `OnEnterPressed` script hooks
+  - Text modification now happens **before** the send process begins
+  - No more protected function violations in any environment
+  - More stable and WoW security model compliant
+
+### Technical Changes
+- **HookChatEditBoxes()**: New function to hook all chat edit boxes on initialization
+- **OnChatEnterPressed()**: New handler that modifies text pre-send
+- Removed `RawHook` on `ChatEdit_SendText` 
+- Updated ChatCompat documentation with recommendations for script hooks
 
 ---
 
-## Version 4.0.2-beta2 (27.01.2026)
-
-### Bug Fixes
-- **ChatCompat LibStub Registration**: Fixed critical error "attempt to call method 'HookSendChatMessage' (a nil value)"
-  - Corrected LibStub registration mechanism in `ChatCompat.lua`
-  - Proper function copying to library table
-  - Addon now loads correctly on all WoW versions
-
----
-
-## Version 4.0.2-beta1 (27.01.2026)
+## Version 4.0.2 (27.01.2026)
 
 ### New Features
 - **ChatCompat Abstraction Layer**: New mini-library for unified Chat API management
   - Automatic feature detection for Retail/Classic APIs
   - Centralized handling of all version differences
   - Reusable for other addons via LibStub
+
+### Bug Fixes
+- **SendChatMessage Hook Recursion**: Prevented re-entrance that caused "script ran too long" errors when sending chat messages
+  - Calls the stored original API instead of the hooked wrapper
+  - Fixes execution stall on message send across all supported clients
+- **ChatCompat LibStub Registration**: Fixed critical error "attempt to call method 'HookSendChatMessage' (a nil value)"
+  - Corrected LibStub registration mechanism in `ChatCompat.lua`
+  - Proper function copying to library table
+  - Addon now loads correctly on all WoW versions
 
 ### Improvements
 - **Code Refactoring**: Use of ChatCompat for clean API abstraction

@@ -47,6 +47,26 @@ end
 -- Unified Hook Registration
 -- AceHook-compatible
 -- 
+-- NOTE: Hooking SendChatMessage is problematic in modern WoW because
+-- it's a protected function that can only be called by Blizzard code
+-- in response to hardware events. Attempting to call it from within
+-- a hook will trigger ADDON_ACTION_FORBIDDEN errors.
+--
+-- WARNING: Even hooking ChatEdit_SendText can cause issues in protected
+-- environments (M+, raids, PvP) because calling the original function
+-- will still trigger SendChatMessage internally.
+-- 
+-- RECOMMENDED: Use HookScript on ChatEditBox "OnEnterPressed" instead.
+-- This allows you to modify the text BEFORE the send process begins,
+-- avoiding all protected function issues.
+-- 
+-- Example:
+--   editBox:HookScript("OnEnterPressed", function(self)
+--       local text = self:GetText()
+--       self:SetText(modifiedText)
+--   end)
+-- 
+-- This function is kept for backwards compatibility but is not recommended.
 -- addon = your AceAddon with RawHook method
 ---------------------------------------------------------------------
 function ChatCompat:HookSendChatMessage(addon)
