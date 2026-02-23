@@ -1,4 +1,47 @@
 ﻿local L = LibStub("AceLocale-3.0"):NewLocale("Name2Chat", "zhCN")
 if not L then return end
 
---@localization(locale="zhCN", format="lua_additive_table", handle-subnamespaces="concat")@
+L["channel"] = "频道"
+L["channel_desc"] = "在此自定义聊天频道的消息中添加名称。"
+L["config"] = "设置"
+L["config_desc"] = "打开设置对话框。"
+L["debug"] = "调试"
+L["debug_desc"] = "启用调试消息。通常情况下无需开启。"
+L["enable"] = "启用"
+L["enable_desc"] = "启用在聊天消息中添加你的名称。"
+L["guild"] = "公会"
+L["guild_desc"] = "在公会聊天（/g 和 /o）消息中添加名称。"
+L["hideOnMatchingCharName"] = "名称与角色名相同时不添加"
+L["hideOnMatchingCharName_desc"] = "如果指定的名称与当前角色名相同，则不会重复添加。"
+L["instance_chat"] = "副本"
+L["instance_chat_desc"] = "在副本聊天（如随机副本、战场）消息中添加名称（/i）。"
+L["Loaded"] = "已加载。"
+L["name"] = "名称"
+L["name_desc"] = "将在你的聊天消息中显示的名称。"
+L["party"] = "小队"
+L["party_desc"] = "在小队聊天（/p）消息中添加名称。"
+L["raid"] = "团队"
+L["raid_desc"] = "在团队聊天（/raid）消息中添加名称。"
+L["ignoreExclamationMark"] = "以 ! 开头的消息不添加名称"
+L["ignoreExclamationMark_desc"] = "如果消息以感叹号（!）开头，则不添加名称。适用于插件指令，例如 !keys。"
+
+-- 状态 / 警告消息
+L["hook_active_eventregistry"] = "挂钩已激活 (ChatFrame.OnEditBoxPreSendText)"
+L["hook_active_mixin"] = "挂钩已激活 (ChatFrameEditBoxMixin.SendText 备用)"
+L["hook_error_no_entry"] = "错误：未找到挂钩入口点。"
+L["hook_error_modify"] = "修改聊天消息时出错："
+L["warn_restrictions_enforced"] = "警告：插件聊天限制现已启用。Name2Chat 功能可能受到限制。"
+L["warn_restrictions_lifted"] = "插件聊天限制已解除。"
+
+-- 调试消息
+L["debug_hook_fired"] = "ModifyChatMessage：挂钩已触发"
+L["debug_disabled"] = "ModifyChatMessage：插件已禁用，跳过"
+L["debug_name_empty"] = "ModifyChatMessage：名称为空，跳过"
+L["debug_name_matches_char"] = "ModifyChatMessage：名称与角色名相同且 hideOnMatchingCharName 已启用，跳过"
+L["debug_msg_empty"] = "ModifyChatMessage：消息为空，跳过"
+L["debug_chattype"] = "ModifyChatMessage：chatType=%s，名称=%s"
+L["debug_should_add"] = "ModifyChatMessage：shouldAddName=%s"
+L["debug_skip_exclamation"] = "ModifyChatMessage：消息以 ! 开头，跳过（ignoreExclamationMark 已启用）"
+L["debug_modified"] = "ModifyChatMessage：完成 -> %s"
+L["debug_chattype_not_active"] = "ModifyChatMessage：chatType '%s' 不在活跃频道列表中。公会=%s 小队=%s 团队=%s"
+

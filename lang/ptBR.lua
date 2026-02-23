@@ -1,4 +1,46 @@
 ﻿local L = LibStub("AceLocale-3.0"):NewLocale("Name2Chat", "ptBR")
 if not L then return end
 
---@localization(locale="ptBR", format="lua_additive_table", handle-subnamespaces="concat")@
+L["channel"] = "Canal"
+L["channel_desc"] = "Adicionar nome às mensagens de chat neste canal personalizado."
+L["config"] = "Configuração"
+L["config_desc"] = "Abrir o diálogo de configuração."
+L["debug"] = "Depuração"
+L["debug_desc"] = "Ativar mensagens de depuração. Normalmente não é necessário ativar isso."
+L["enable"] = "Ativar"
+L["enable_desc"] = "Ativar a adição do seu nome às mensagens de chat."
+L["guild"] = "Guilda"
+L["guild_desc"] = "Adicionar nome às mensagens do chat de guilda (/g e /o)."
+L["hideOnMatchingCharName"] = "Ocultar nome se corresponder ao nome do personagem"
+L["hideOnMatchingCharName_desc"] = "Se o nome especificado corresponder ao nome do personagem atual, ele não será adicionado novamente."
+L["instance_chat"] = "Instância"
+L["instance_chat_desc"] = "Adicionar nome às mensagens do chat de instância, ex. LFR e campos de batalha (/i)."
+L["Loaded"] = "Carregado."
+L["name"] = "Nome"
+L["name_desc"] = "O nome que será exibido nas suas mensagens de chat."
+L["party"] = "Grupo"
+L["party_desc"] = "Adicionar nome às mensagens do chat de grupo (/p)."
+L["raid"] = "Raid"
+L["raid_desc"] = "Adicionar nome às mensagens do chat de raid (/raid)."
+L["ignoreExclamationMark"] = "Não adicionar nome a mensagens que começam com !"
+L["ignoreExclamationMark_desc"] = "Se uma mensagem começar com ponto de exclamação (!), o nome não será adicionado. Útil para comandos de addons como !keys."
+
+-- Mensagens de status / aviso
+L["hook_active_eventregistry"] = "Hook ativo (ChatFrame.OnEditBoxPreSendText)"
+L["hook_active_mixin"] = "Hook ativo (ChatFrameEditBoxMixin.SendText fallback)"
+L["hook_error_no_entry"] = "ERRO: Nenhum ponto de entrada encontrado para o hook."
+L["hook_error_modify"] = "Erro ao modificar mensagem de chat: "
+L["warn_restrictions_enforced"] = "Aviso: As restrições de chat de addons estão agora ativas. As funções do Name2Chat podem estar limitadas."
+L["warn_restrictions_lifted"] = "As restrições de chat de addons foram removidas."
+
+-- Mensagens de depuração
+L["debug_hook_fired"] = "ModifyChatMessage: hook ativado"
+L["debug_disabled"] = "ModifyChatMessage: addon DESATIVADO, ignorando"
+L["debug_name_empty"] = "ModifyChatMessage: nome VAZIO, ignorando"
+L["debug_name_matches_char"] = "ModifyChatMessage: nome coincide com o do personagem e hideOnMatchingCharName está ativo, ignorando"
+L["debug_msg_empty"] = "ModifyChatMessage: mensagem vazia, ignorando"
+L["debug_chattype"] = "ModifyChatMessage: chatType=%s, nome=%s"
+L["debug_should_add"] = "ModifyChatMessage: shouldAddName=%s"
+L["debug_skip_exclamation"] = "ModifyChatMessage: ignorando, mensagem começa com ! (ignoreExclamationMark ativo)"
+L["debug_modified"] = "ModifyChatMessage: OK -> %s"
+L["debug_chattype_not_active"] = "ModifyChatMessage: chatType '%s' não está na lista de canais ativos. guilda=%s grupo=%s raid=%s"

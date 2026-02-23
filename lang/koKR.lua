@@ -1,4 +1,46 @@
 ﻿local L = LibStub("AceLocale-3.0"):NewLocale("Name2Chat", "koKR")
 if not L then return end
 
---@localization(locale="koKR", format="lua_additive_table", handle-subnamespaces="concat")@
+L["channel"] = "채널"
+L["channel_desc"] = "이 사용자 지정 채널의 채팅 메시지에 이름을 추가합니다."
+L["config"] = "설정"
+L["config_desc"] = "설정 대화 상자를 엽니다."
+L["debug"] = "디버그"
+L["debug_desc"] = "디버그 메시지를 활성화합니다. 일반적으로는 비활성화 상태로 두는 것이 좋습니다."
+L["enable"] = "활성화"
+L["enable_desc"] = "채팅 메시지에 이름을 추가하는 기능을 활성화합니다."
+L["guild"] = "길드"
+L["guild_desc"] = "길드 채팅 (/g 및 /o) 메시지에 이름을 추가합니다."
+L["hideOnMatchingCharName"] = "캐릭터 이름과 일치할 경우 이름 숨기기"
+L["hideOnMatchingCharName_desc"] = "지정한 이름이 현재 캐릭터 이름과 일치하면 이름을 추가하지 않습니다."
+L["instance_chat"] = "인스턴스"
+L["instance_chat_desc"] = "인스턴스 채팅 (예: 공격대 찾기, 전장) 메시지에 이름을 추가합니다 (/i)."
+L["Loaded"] = "로드 완료."
+L["name"] = "이름"
+L["name_desc"] = "채팅 메시지에 표시될 이름입니다."
+L["party"] = "파티"
+L["party_desc"] = "파티 채팅 (/p) 메시지에 이름을 추가합니다."
+L["raid"] = "공격대"
+L["raid_desc"] = "공격대 채팅 (/raid) 메시지에 이름을 추가합니다."
+L["ignoreExclamationMark"] = "!로 시작하는 메시지에 이름 추가 안 함"
+L["ignoreExclamationMark_desc"] = "메시지가 느낌표(!)로 시작하면 이름을 추가하지 않습니다. !keys 같은 애드온 명령어에 유용합니다."
+
+-- 상태 / 경고 메시지
+L["hook_active_eventregistry"] = "훅 활성화됨 (ChatFrame.OnEditBoxPreSendText)"
+L["hook_active_mixin"] = "훅 활성화됨 (ChatFrameEditBoxMixin.SendText 대체)"
+L["hook_error_no_entry"] = "오류: 훅 진입점을 찾을 수 없습니다."
+L["hook_error_modify"] = "채팅 메시지 수정 중 오류 발생: "
+L["warn_restrictions_enforced"] = "경고: 애드온 채팅 제한이 활성화되었습니다. Name2Chat 기능이 제한될 수 있습니다."
+L["warn_restrictions_lifted"] = "애드온 채팅 제한이 해제되었습니다."
+
+-- 디버그 메시지
+L["debug_hook_fired"] = "ModifyChatMessage: 훅 실행됨"
+L["debug_disabled"] = "ModifyChatMessage: 애드온 비활성화됨, 건너뜀"
+L["debug_name_empty"] = "ModifyChatMessage: 이름이 비어 있음, 건너뜀"
+L["debug_name_matches_char"] = "ModifyChatMessage: 이름이 캐릭터 이름과 일치하고 hideOnMatchingCharName 활성화됨, 건너뜀"
+L["debug_msg_empty"] = "ModifyChatMessage: 메시지가 비어 있음, 건너뜀"
+L["debug_chattype"] = "ModifyChatMessage: chatType=%s, 이름=%s"
+L["debug_should_add"] = "ModifyChatMessage: shouldAddName=%s"
+L["debug_skip_exclamation"] = "ModifyChatMessage: !로 시작하는 메시지, 건너뜀 (ignoreExclamationMark 활성화됨)"
+L["debug_modified"] = "ModifyChatMessage: 완료 -> %s"
+L["debug_chattype_not_active"] = "ModifyChatMessage: chatType '%s'이(가) 활성 채널 목록에 없음. 길드=%s 파티=%s 공격대=%s"

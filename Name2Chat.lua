@@ -7,9 +7,6 @@ Name2Chat = LibStub("AceAddon-3.0"):NewAddon("Name2Chat",
 											"AceEvent-3.0",
 											"AceHook-3.0")
 
--- Lade ChatCompat für vereinheitlichte Chat-API
-local ChatCompat = LibStub("ChatCompat")
-
 
 ----------------------------
 --      Localization      --
@@ -159,11 +156,8 @@ function Name2Chat:OnInitialize()
 		profiles = dialog:AddToBlizOptions(	"Name2Chat Profiles", "Profiles", "Name2Chat");
 	}
 
-	-- Hook ChatEdit_SendText to modify messages before they're sent
-	-- We use a pre-hook approach: save original, replace script handler
+	-- Hook the chat send function to prepend the name before messages go out
 	self:HookChatSendFunction()
-	
-	self:Safe_Print("Using ChatEdit_SendText pre-modification hook")
 
 	-- Register event to get character name when available
 	self:RegisterEvent("PLAYER_LOGIN", "OnPlayerLogin")
@@ -195,67 +189,81 @@ function Name2Chat:OnAddonRestrictionChanged()
 	if GetCVarBool and C_CVar and C_CVar.GetCVarBool then
 		local success, isForced = pcall(C_CVar.GetCVarBool, "addonChatRestrictionsForced")
 		if success and isForced then
-			self:Print("Warning: Addon chat restrictions are now enforced. Name2Chat functionality may be limited.")
+			self:Print(L["warn_restrictions_enforced"])
 		elseif success then
-			self:Safe_Print("Addon chat restrictions have been lifted.")
+			self:Safe_Print(L["warn_restrictions_lifted"])
 		end
 	elseif GetCVarBool then
 		-- Fallback for older API
 		local success, isForced = pcall(GetCVarBool, "addonChatRestrictionsForced")
 		if success and isForced then
-			self:Print("Warning: Addon chat restrictions are now enforced. Name2Chat functionality may be limited.")
+			self:Print(L["warn_restrictions_enforced"])
 		elseif success then
-			self:Safe_Print("Addon chat restrictions have been lifted.")
+			self:Safe_Print(L["warn_restrictions_lifted"])
 		end
 	end
 end
 
--- Hook ChatEdit_SendText to modify messages BEFORE they are sent
--- This is the proper way to intercept chat messages without protected function issues
--- Updated for Patch 12.0.0: ChatEdit_SendText is deprecated but still functional
+-- Hook über den offiziellen Blizzard-Event für Addon-Textänderungen vor dem Senden.
+-- Quelle: ChatFrameEditBoxMixin:OnPreSendText() in ChatFrameEditBox.lua (12.0.0)
+-- Kommentar im Blizzard-Code: "Notification for user addons to perform any final
+-- edits to chat text contents before sending."
+-- Sequenz in SendText(): ParseText(1) → OnPreSendText() → GetText() → SendChatMessage()
+-- D.h.: chatType ist bereits aufgelöst (z.B. /g → "GUILD"), SetText() beeinflusst noch den Send.
 function Name2Chat:HookChatSendFunction()
-	-- Check if ChatEdit_SendText exists (it might be deprecated in future versions)
-	if not ChatEdit_SendText then
-		self:Print("Error: ChatEdit_SendText not found. Name2Chat may not work correctly.")
-		return
-	end
-	
-	-- Store the original ChatEdit_SendText
-	local origChatEdit_SendText = ChatEdit_SendText
-	
-	-- Replace with our wrapper that modifies text first, then calls original
-	ChatEdit_SendText = function(editBox, addHistory)
-		-- Protect against errors in our modification code
-		local success, err = pcall(function()
-			-- Let our function modify the editBox text if needed
-			Name2Chat:ModifyChatMessage(editBox)
-		end)
-		
-		if not success then
-			Name2Chat:Print("Error modifying chat message: " .. tostring(err))
+	---@diagnostic disable-next-line: undefined-global
+	if EventRegistry then
+		---@diagnostic disable-next-line: undefined-global
+		EventRegistry:RegisterCallback("ChatFrame.OnEditBoxPreSendText", function(event, editBox)
+			local success, err = pcall(function()
+				Name2Chat:ModifyChatMessage(editBox)
+			end)
+			if not success then
+				Name2Chat:Print(L["hook_error_modify"] .. tostring(err))
+			end
+		end, Name2Chat)
+		self:Print(L["hook_active_eventregistry"])
+	else
+		-- Fallback for older clients without EventRegistry
+		---@diagnostic disable-next-line: undefined-global
+		local mixin = ChatFrameEditBoxMixin
+		if mixin and mixin.SendText then
+			local orig = mixin.SendText
+			mixin.SendText = function(editBox, ...)
+				local success, err = pcall(function()
+					Name2Chat:ModifyChatMessage(editBox)
+				end)
+				if not success then
+					Name2Chat:Print(L["hook_error_modify"] .. tostring(err))
+				end
+				orig(editBox, ...)
+			end
+			self:Print(L["hook_active_mixin"])
+		else
+			self:Print(L["hook_error_no_entry"])
 		end
-		
-		-- Always call the original function, even if our modification failed
-		origChatEdit_SendText(editBox, addHistory)
 	end
-	
-	self:Safe_Print("ChatEdit_SendText hooked successfully")
 end
 
 -- Modify the chat message in the editBox before it's sent
 function Name2Chat:ModifyChatMessage(editBox)
+	self:Safe_Print(L["debug_hook_fired"])
+
 	-- Early exit if addon is disabled
 	if not self.db.profile.enable then
+		self:Safe_Print(L["debug_disabled"])
 		return
 	end
 
 	-- Check if we have a valid name configured
 	if not self.db.profile.name or self.db.profile.name == "" then
+		self:Safe_Print(L["debug_name_empty"])
 		return
 	end
 
 	-- Check if we should hide the name when it matches character name
 	if self.db.profile.hideOnMatchingCharName and self.db.profile.name == character_name then
+		self:Safe_Print(L["debug_name_matches_char"])
 		return
 	end
 
@@ -264,15 +272,21 @@ function Name2Chat:ModifyChatMessage(editBox)
 	
 	-- Ignore empty messages
 	if not msg or msg == "" then
+		self:Safe_Print(L["debug_msg_empty"])
 		return
 	end
 	
 	-- Determine chat type from edit box
 	local chatType = editBox:GetAttribute("chatType")
+	if not chatType and editBox.chatType then
+		chatType = editBox.chatType
+	end
 	if not chatType then
 		chatType = "SAY"
 	end
 	
+	self:Safe_Print(L["debug_chattype"]:format(tostring(chatType), tostring(self.db.profile.name)))
+
 	local shouldAddName = false
 	
 	-- Check based on chat type
@@ -287,6 +301,9 @@ function Name2Chat:ModifyChatMessage(editBox)
 	elseif (self.db.profile.channel ~= nil) and (self.db.profile.channel ~= "") and chatType == "CHANNEL" then
 		-- Special handling for custom channels
 		local channelNum = editBox:GetAttribute("channelTarget")
+		if not channelNum and editBox.channelTarget then
+			channelNum = editBox.channelTarget
+		end
 		if channelNum then
 			local id, chname = GetChannelName(channelNum)
 			if chname and strupper(self.db.profile.channel) == strupper(chname) then
@@ -295,17 +312,26 @@ function Name2Chat:ModifyChatMessage(editBox)
 		end
 	end
 
+	self:Safe_Print(L["debug_should_add"]:format(tostring(shouldAddName)))
+
 	-- Add name unless it's a special command and ignore option is enabled
 	if shouldAddName then
 		if self.db.profile.ignoreExclamationMark and self:StartsWithExclamation(msg) then
 			-- Don't add name for commands starting with !
-			self:Safe_Print("Ignoring message starting with exclamation mark: " .. msg)
+			self:Safe_Print(L["debug_skip_exclamation"])
 		else
-			-- Modify the text in the editbox BEFORE ChatEdit_SendText processes it
+			-- Modify the text in the editbox BEFORE it is sent
 			local newMsg = "(" .. self.db.profile.name .. "): " .. msg
 			editBox:SetText(newMsg)
-			self:Safe_Print("Modified message: " .. newMsg)
+			self:Safe_Print(L["debug_modified"]:format(newMsg))
 		end
+	else
+		self:Safe_Print(L["debug_chattype_not_active"]:format(
+			tostring(chatType),
+			tostring(self.db.profile.guild),
+			tostring(self.db.profile.party),
+			tostring(self.db.profile.raid)
+		))
 	end
 end
 

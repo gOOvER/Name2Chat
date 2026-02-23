@@ -1,4 +1,46 @@
-﻿local L = LibStub("AceLocale-3.0"):NewLocale("Name2Chat", "deDE") 
-if not L then return end 
+﻿local L = LibStub("AceLocale-3.0"):NewLocale("Name2Chat", "deDE")
+if not L then return end
 
---@localization(locale="deDE", format="lua_additive_table", handle-subnamespaces="concat")@ 
+L["channel"] = "Kanal"
+L["channel_desc"] = "Namen zu Chatnachrichten in diesem benutzerdefinierten Kanal hinzufügen."
+L["config"] = "Konfiguration"
+L["config_desc"] = "Konfigurationsdialog öffnen."
+L["debug"] = "Debug"
+L["debug_desc"] = "Debugmeldungen aktivieren. Du möchtest das wahrscheinlich nicht aktivieren."
+L["enable"] = "Aktivieren"
+L["enable_desc"] = "Das Hinzufügen deines Namens zu Chatnachrichten aktivieren."
+L["guild"] = "Gilde"
+L["guild_desc"] = "Namen zu Gildenchat-Nachrichten hinzufügen (/g und /o)."
+L["hideOnMatchingCharName"] = "Name ausblenden, wenn er dem Charakternamen entspricht"
+L["hideOnMatchingCharName_desc"] = "Wenn der oben angegebene Name mit dem aktuellen Charakternamen übereinstimmt, wird er nicht erneut hinzugefügt."
+L["instance_chat"] = "Instanz"
+L["instance_chat_desc"] = "Namen zu Instanz-Chatnachrichten hinzufügen, z.B. LFR und Schlachtfelder (/i)."
+L["Loaded"] = "Geladen."
+L["name"] = "Name"
+L["name_desc"] = "Der Name, der in deinen Chatnachrichten angezeigt werden soll."
+L["party"] = "Gruppe"
+L["party_desc"] = "Namen zu Gruppen-Chatnachrichten hinzufügen (/p)."
+L["raid"] = "Schlachtzug"
+L["raid_desc"] = "Namen zu Schlachtzug-Chatnachrichten hinzufügen (/raid)."
+L["ignoreExclamationMark"] = "Namen nicht zu Nachrichten mit ! am Anfang hinzufügen"
+L["ignoreExclamationMark_desc"] = "Wenn eine Nachricht mit einem Ausrufezeichen (!) beginnt, wird der Name nicht hinzugefügt. Nützlich für Addon-Befehle wie !keys."
+
+-- Status / Warnmeldungen
+L["hook_active_eventregistry"] = "Hook aktiv (ChatFrame.OnEditBoxPreSendText)"
+L["hook_active_mixin"] = "Hook aktiv (ChatFrameEditBoxMixin.SendText Fallback)"
+L["hook_error_no_entry"] = "FEHLER: Kein Hook-Einsprungpunkt gefunden."
+L["hook_error_modify"] = "Fehler beim Ändern der Chatnachricht: "
+L["warn_restrictions_enforced"] = "Warnung: Addon-Chat-Einschränkungen sind jetzt aktiv. Name2Chat könnte eingeschränkt sein."
+L["warn_restrictions_lifted"] = "Addon-Chat-Einschränkungen wurden aufgehoben."
+
+-- Debug-Meldungen
+L["debug_hook_fired"] = "ModifyChatMessage: Hook ausgelöst"
+L["debug_disabled"] = "ModifyChatMessage: Addon ist DEAKTIVIERT, überspringe"
+L["debug_name_empty"] = "ModifyChatMessage: Name ist LEER, überspringe"
+L["debug_name_matches_char"] = "ModifyChatMessage: Name stimmt mit Charakternamen überein und hideOnMatchingCharName ist gesetzt, überspringe"
+L["debug_msg_empty"] = "ModifyChatMessage: Nachricht ist leer, überspringe"
+L["debug_chattype"] = "ModifyChatMessage: chatType=%s, name=%s"
+L["debug_should_add"] = "ModifyChatMessage: shouldAddName=%s"
+L["debug_skip_exclamation"] = "ModifyChatMessage: überspringe, Nachricht beginnt mit ! (ignoreExclamationMark aktiv)"
+L["debug_modified"] = "ModifyChatMessage: OK -> %s"
+L["debug_chattype_not_active"] = "ModifyChatMessage: chatType '%s' nicht in aktiver Kanalliste. gilde=%s gruppe=%s schlachtzug=%s"

@@ -1,4 +1,46 @@
 ﻿local L = LibStub("AceLocale-3.0"):NewLocale("Name2Chat", "ruRU")
 if not L then return end
 
---@localization(locale="ruRU", format="lua_additive_table", handle-subnamespaces="concat")@
+L["channel"] = "Канал"
+L["channel_desc"] = "Добавлять имя в сообщения в этом пользовательском канале чата."
+L["config"] = "Настройки"
+L["config_desc"] = "Открыть диалог настроек."
+L["debug"] = "Отладка"
+L["debug_desc"] = "Включить отладочные сообщения. Скорее всего, вам это не нужно."
+L["enable"] = "Включить"
+L["enable_desc"] = "Включить добавление вашего имени в сообщения чата."
+L["guild"] = "Гильдия"
+L["guild_desc"] = "Добавлять имя в сообщения чата гильдии (/g и /o)."
+L["hideOnMatchingCharName"] = "Не добавлять имя, если оно совпадает с именем персонажа"
+L["hideOnMatchingCharName_desc"] = "Если указанное имя совпадает с именем текущего персонажа, оно не будет добавляться повторно."
+L["instance_chat"] = "Инстанс"
+L["instance_chat_desc"] = "Добавлять имя в сообщения чата инстанса, напр. LFR и поля боя (/i)."
+L["Loaded"] = "Загружен."
+L["name"] = "Имя"
+L["name_desc"] = "Имя, которое будет отображаться в ваших сообщениях чата."
+L["party"] = "Группа"
+L["party_desc"] = "Добавлять имя в сообщения чата группы (/p)."
+L["raid"] = "Рейд"
+L["raid_desc"] = "Добавлять имя в сообщения рейдового чата (/raid)."
+L["ignoreExclamationMark"] = "Не добавлять имя к сообщениям, начинающимся с !"
+L["ignoreExclamationMark_desc"] = "Если сообщение начинается с восклицательного знака (!), имя добавляться не будет. Полезно для команд аддонов, например !keys."
+
+-- Сообщения о статусе / предупреждения
+L["hook_active_eventregistry"] = "Хук активен (ChatFrame.OnEditBoxPreSendText)"
+L["hook_active_mixin"] = "Хук активен (ChatFrameEditBoxMixin.SendText резервный)"
+L["hook_error_no_entry"] = "ОШИБКА: Не найдена точка входа для хука."
+L["hook_error_modify"] = "Ошибка при изменении сообщения чата: "
+L["warn_restrictions_enforced"] = "Предупреждение: Ограничения чата аддонов теперь активны. Функции Name2Chat могут быть ограничены."
+L["warn_restrictions_lifted"] = "Ограничения чата аддонов сняты."
+
+-- Отладочные сообщения
+L["debug_hook_fired"] = "ModifyChatMessage: хук сработал"
+L["debug_disabled"] = "ModifyChatMessage: аддон ОТКЛЮЧЁН, пропуск"
+L["debug_name_empty"] = "ModifyChatMessage: имя ПУСТОЕ, пропуск"
+L["debug_name_matches_char"] = "ModifyChatMessage: имя совпадает с именем персонажа и hideOnMatchingCharName активен, пропуск"
+L["debug_msg_empty"] = "ModifyChatMessage: сообщение пустое, пропуск"
+L["debug_chattype"] = "ModifyChatMessage: chatType=%s, имя=%s"
+L["debug_should_add"] = "ModifyChatMessage: shouldAddName=%s"
+L["debug_skip_exclamation"] = "ModifyChatMessage: пропуск, сообщение начинается с ! (ignoreExclamationMark активен)"
+L["debug_modified"] = "ModifyChatMessage: ОК -> %s"
+L["debug_chattype_not_active"] = "ModifyChatMessage: chatType '%s' не в списке активных каналов. гильдия=%s группа=%s рейд=%s"

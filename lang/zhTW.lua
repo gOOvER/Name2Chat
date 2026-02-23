@@ -1,4 +1,47 @@
 ﻿local L = LibStub("AceLocale-3.0"):NewLocale("Name2Chat", "zhTW")
 if not L then return end
 
---@localization(locale="zhTW", format="lua_additive_table", handle-subnamespaces="concat")@
+L["channel"] = "頻道"
+L["channel_desc"] = "在此自訂聊天頻道的訊息中加入名稱。"
+L["config"] = "設定"
+L["config_desc"] = "開啟設定對話框。"
+L["debug"] = "除錯"
+L["debug_desc"] = "啟用除錯訊息。一般情況下無需開啟。"
+L["enable"] = "啟用"
+L["enable_desc"] = "啟用在聊天訊息中加入你的名稱。"
+L["guild"] = "公會"
+L["guild_desc"] = "在公會聊天（/g 和 /o）訊息中加入名稱。"
+L["hideOnMatchingCharName"] = "名稱與角色名稱相同時不加入"
+L["hideOnMatchingCharName_desc"] = "若指定的名稱與目前角色名稱相同，則不會重複加入。"
+L["instance_chat"] = "副本"
+L["instance_chat_desc"] = "在副本聊天（如隨機副本、戰場）訊息中加入名稱（/i）。"
+L["Loaded"] = "已載入。"
+L["name"] = "名稱"
+L["name_desc"] = "將顯示於你的聊天訊息中的名稱。"
+L["party"] = "小隊"
+L["party_desc"] = "在小隊聊天（/p）訊息中加入名稱。"
+L["raid"] = "團隊"
+L["raid_desc"] = "在團隊聊天（/raid）訊息中加入名稱。"
+L["ignoreExclamationMark"] = "以 ! 開頭的訊息不加入名稱"
+L["ignoreExclamationMark_desc"] = "若訊息以驚嘆號（!）開頭，則不加入名稱。適用於外掛指令，例如 !keys。"
+
+-- 狀態 / 警告訊息
+L["hook_active_eventregistry"] = "掛鉤已啟用 (ChatFrame.OnEditBoxPreSendText)"
+L["hook_active_mixin"] = "掛鉤已啟用 (ChatFrameEditBoxMixin.SendText 備援)"
+L["hook_error_no_entry"] = "錯誤：找不到掛鉤進入點。"
+L["hook_error_modify"] = "修改聊天訊息時發生錯誤："
+L["warn_restrictions_enforced"] = "警告：外掛聊天限制現已啟用。Name2Chat 功能可能受到限制。"
+L["warn_restrictions_lifted"] = "外掛聊天限制已解除。"
+
+-- 除錯訊息
+L["debug_hook_fired"] = "ModifyChatMessage：掛鉤已觸發"
+L["debug_disabled"] = "ModifyChatMessage：外掛已停用，略過"
+L["debug_name_empty"] = "ModifyChatMessage：名稱為空，略過"
+L["debug_name_matches_char"] = "ModifyChatMessage：名稱與角色名稱相同且 hideOnMatchingCharName 已啟用，略過"
+L["debug_msg_empty"] = "ModifyChatMessage：訊息為空，略過"
+L["debug_chattype"] = "ModifyChatMessage：chatType=%s，名稱=%s"
+L["debug_should_add"] = "ModifyChatMessage：shouldAddName=%s"
+L["debug_skip_exclamation"] = "ModifyChatMessage：訊息以 ! 開頭，略過（ignoreExclamationMark 已啟用）"
+L["debug_modified"] = "ModifyChatMessage：完成 -> %s"
+L["debug_chattype_not_active"] = "ModifyChatMessage：chatType '%s' 不在活躍頻道清單中。公會=%s 小隊=%s 團隊=%s"
+

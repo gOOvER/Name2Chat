@@ -3,36 +3,36 @@
 ## Version 4.0.3 (23.02.2026)
 
 ### Bug Fixes
-- **Addon not loading / Names not showing (4.0.3-beta1 issues)**: Fixed critical bugs in beta release
-  - OnEnterPressed hook was running too late (post-hook instead of pre-hook)
-  - Text modification was happening after message was already processed
-  - Reverted to proper `ChatEdit_SendText` pre-hook approach
-  - Messages now correctly show names in all chat types including Guild chat with XFaction
-  - Addon now loads properly and all features work as expected
+- **Name not being prepended to messages (critical fix)**: Found and resolved root cause
+  - Previous approaches (`ChatEdit_SendText`, `ChatFrameEditBoxMixin.SendText`) were bypassed because Blizzard completely rearchitected the chat send path in Patch 12.0.0
+  - The correct hook point is now `EventRegistry:RegisterCallback("ChatFrame.OnEditBoxPreSendText", ...)`
+  - Blizzard included this event **explicitly for addons**: *"Notification for user addons to perform any final edits to chat text contents before sending."* (source: `ChatFrameEditBox.lua` in `Blizzard_ChatFrameBase`)
+  - The event fires **after** `ParseText()` (chatType already resolved, e.g. `/g` → `"GUILD"`) but **before** `GetText()` is called for the send — so `SetText()` still affects the outgoing message
+  - Hook confirmation `Name2Chat: Hook active (ChatFrame.OnEditBoxPreSendText)` is always printed on load
 
 ### Patch 12.0.0 (Midnight) Compatibility
 - **Updated for WoW Patch 12.0.0 API changes**:
-  - Updated ChatCompat documentation for deprecated APIs
+  - `ChatEdit_SendText` is now a deprecated alias only loaded when `loadDeprecationFallbacks` CVar is set — no longer reliable as a hook target
   - Added support for new `ADDON_RESTRICTION_STATE_CHANGED` event
   - Added monitoring for `addonChatRestrictionsForced` CVar
-  - Enhanced error handling to work with new "Secret Values" system
-  - Added pcall protection around chat modification code
-  - ChatEdit_SendText is now deprecated but still functional via fallback
+  - Enhanced error handling to work with the new "Secret Values" system
+  - Added `pcall` protection around chat modification code
 
 ### Improvements
-- **Enhanced Error Handling**: Added comprehensive error protection
-  - pcall wrapping for chat message modification
-  - Graceful degradation if ChatEdit_SendText is missing
-  - Safe CVar checking for cross-version compatibility
-- **Better User Feedback**: Warns users if addon chat restrictions are enforced
-- **Cross-Version Support**: Continues to work on all WoW versions (Retail 12.0+, Classic variants)
+- **Enhanced Error Handling**: Added debug output at every decision point in `ModifyChatMessage()` — disabled/empty name/unsupported chat type are all now logged when debug mode is active
+- **Better User Feedback**: Warns if addon chat restrictions are enforced
+- **Cross-Version Support**: Works on all WoW versions (Retail 12.0+, Classic variants) via EventRegistry primary hook and `ChatFrameEditBoxMixin.SendText` fallback
+
+### Localization
+- **All hardcoded strings moved to AceLocale-3.0**: Every visible string (UI labels, debug messages, status output) is now fully localized
+- **Translations added for all supported languages**: deDE, esES, esMX, frFR, itIT, koKR, ptBR, ruRU, zhCN, zhTW
+- **Note**: All translations except `enUS` are AI-generated and may contain inaccuracies. Community corrections are welcome via CurseForge or the GitHub repository.
 
 ### Technical Changes
-- **HookChatSendFunction()**: Enhanced with existence checks and error handling
-- **ModifyChatMessage()**: Simplified chat type detection, removed ChatCompat dependency for basic checks
-- **OnAddonRestrictionChanged()**: New event handler for Patch 12.0.0 chat restrictions
-- Direct chat type checks instead of ChatCompat:IsSupportedChatType
-- More reliable hook timing ensures text modification happens at the right moment
+- `HookChatSendFunction()`: Switched primary hook to `EventRegistry` callback; `ChatFrameEditBoxMixin.SendText` kept as fallback for Classic/older clients
+- `ModifyChatMessage()`: Added `Safe_Print` debug output at every early-return and decision point
+- `OnAddonRestrictionChanged()`: New event handler for Patch 12.0.0 chat restrictions
+- Removed unused libraries from `embeds.xml`: `AceComm-3.0`, `AceSerializer-3.0`, `AceTab-3.0`, `AceTimer-3.0`
 
 ---
 
