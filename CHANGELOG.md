@@ -3,6 +3,8 @@
 ## Version 4.0.3 (23.02.2026)
 
 ### Bug Fixes
+- **Raid chat inside instances not working**: In WoW instances (raids, LFR, battlegrounds), `/raid` chat is routed by the game as `INSTANCE_CHAT` instead of `RAID`. Enabling "Raid" in the addon settings now also covers `INSTANCE_CHAT` automatically.
+- **Officer chat (`/o`) not covered**: Added explicit handling for `OFFICER` chat type under the guild setting (which already documented `/g and /o` in its description).
 - **Name not being prepended to messages (critical fix)**: Found and resolved root cause
   - Previous approaches (`ChatEdit_SendText`, `ChatFrameEditBoxMixin.SendText`) were bypassed because Blizzard completely rearchitected the chat send path in Patch 12.0.0
   - The correct hook point is now `EventRegistry:RegisterCallback("ChatFrame.OnEditBoxPreSendText", ...)`

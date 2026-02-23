@@ -43,5 +43,5 @@ L["debug_chattype"] = "ModifyChatMessage：chatType=%s，名稱=%s"
 L["debug_should_add"] = "ModifyChatMessage：shouldAddName=%s"
 L["debug_skip_exclamation"] = "ModifyChatMessage：訊息以 ! 開頭，略過（ignoreExclamationMark 已啟用）"
 L["debug_modified"] = "ModifyChatMessage：完成 -> %s"
-L["debug_chattype_not_active"] = "ModifyChatMessage：chatType '%s' 不在活躍頻道清單中。公會=%s 小隊=%s 團隊=%s"
+L["debug_chattype_not_active"] = "ModifyChatMessage：chatType '%s' 不在活躍頻道清單中。公會=%s 小隊=%s 團隊=%s 副本=%s"
 

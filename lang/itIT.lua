@@ -43,6 +43,6 @@ L["debug_chattype"] = "ModifyChatMessage: chatType=%s, nome=%s"
 L["debug_should_add"] = "ModifyChatMessage: shouldAddName=%s"
 L["debug_skip_exclamation"] = "ModifyChatMessage: salto, il messaggio inizia con ! (ignoreExclamationMark attivo)"
 L["debug_modified"] = "ModifyChatMessage: OK -> %s"
-L["debug_chattype_not_active"] = "ModifyChatMessage: chatType '%s' non è nell'elenco dei canali attivi. gilda=%s gruppo=%s incursione=%s"
+L["debug_chattype_not_active"] = "ModifyChatMessage: chatType '%s' non è nell'elenco dei canali attivi. gilda=%s gruppo=%s incursione=%s istanza=%s"
 
 

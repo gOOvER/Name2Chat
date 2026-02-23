@@ -292,11 +292,14 @@ function Name2Chat:ModifyChatMessage(editBox)
 	-- Check based on chat type
 	if chatType == "GUILD" and self.db.profile.guild then
 		shouldAddName = true
+	elseif chatType == "OFFICER" and self.db.profile.guild then
+		shouldAddName = true
 	elseif chatType == "PARTY" and self.db.profile.party then
 		shouldAddName = true
 	elseif chatType == "RAID" and self.db.profile.raid then
 		shouldAddName = true
-	elseif chatType == "INSTANCE_CHAT" and self.db.profile.instance_chat then
+	elseif chatType == "INSTANCE_CHAT" and (self.db.profile.instance_chat or self.db.profile.raid) then
+		-- In instances (raids, LFR, battlegrounds) WoW routes raid chat as INSTANCE_CHAT
 		shouldAddName = true
 	elseif (self.db.profile.channel ~= nil) and (self.db.profile.channel ~= "") and chatType == "CHANNEL" then
 		-- Special handling for custom channels
@@ -330,7 +333,8 @@ function Name2Chat:ModifyChatMessage(editBox)
 			tostring(chatType),
 			tostring(self.db.profile.guild),
 			tostring(self.db.profile.party),
-			tostring(self.db.profile.raid)
+			tostring(self.db.profile.raid),
+			tostring(self.db.profile.instance_chat)
 		))
 	end
 end
