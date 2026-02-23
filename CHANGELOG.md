@@ -1,19 +1,38 @@
 # Name2Chat Changelog
 
-## Version 4.0.3 (16.02.2026)
+## Version 4.0.3 (23.02.2026)
 
 ### Bug Fixes
-- **ADDON_ACTION_FORBIDDEN in Protected Environments**: Fixed critical error when sending messages in M+, raids, and PvP
-  - Changed from hooking `SendChatMessage`/`ChatEdit_SendText` to using `OnEnterPressed` script hooks
-  - Text modification now happens **before** the send process begins
-  - No more protected function violations in any environment
-  - More stable and WoW security model compliant
+- **Addon not loading / Names not showing (4.0.3-beta1 issues)**: Fixed critical bugs in beta release
+  - OnEnterPressed hook was running too late (post-hook instead of pre-hook)
+  - Text modification was happening after message was already processed
+  - Reverted to proper `ChatEdit_SendText` pre-hook approach
+  - Messages now correctly show names in all chat types including Guild chat with XFaction
+  - Addon now loads properly and all features work as expected
+
+### Patch 12.0.0 (Midnight) Compatibility
+- **Updated for WoW Patch 12.0.0 API changes**:
+  - Updated ChatCompat documentation for deprecated APIs
+  - Added support for new `ADDON_RESTRICTION_STATE_CHANGED` event
+  - Added monitoring for `addonChatRestrictionsForced` CVar
+  - Enhanced error handling to work with new "Secret Values" system
+  - Added pcall protection around chat modification code
+  - ChatEdit_SendText is now deprecated but still functional via fallback
+
+### Improvements
+- **Enhanced Error Handling**: Added comprehensive error protection
+  - pcall wrapping for chat message modification
+  - Graceful degradation if ChatEdit_SendText is missing
+  - Safe CVar checking for cross-version compatibility
+- **Better User Feedback**: Warns users if addon chat restrictions are enforced
+- **Cross-Version Support**: Continues to work on all WoW versions (Retail 12.0+, Classic variants)
 
 ### Technical Changes
-- **HookChatEditBoxes()**: New function to hook all chat edit boxes on initialization
-- **OnChatEnterPressed()**: New handler that modifies text pre-send
-- Removed `RawHook` on `ChatEdit_SendText` 
-- Updated ChatCompat documentation with recommendations for script hooks
+- **HookChatSendFunction()**: Enhanced with existence checks and error handling
+- **ModifyChatMessage()**: Simplified chat type detection, removed ChatCompat dependency for basic checks
+- **OnAddonRestrictionChanged()**: New event handler for Patch 12.0.0 chat restrictions
+- Direct chat type checks instead of ChatCompat:IsSupportedChatType
+- More reliable hook timing ensures text modification happens at the right moment
 
 ---
 

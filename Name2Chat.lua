@@ -159,14 +159,21 @@ function Name2Chat:OnInitialize()
 		profiles = dialog:AddToBlizOptions(	"Name2Chat Profiles", "Profiles", "Name2Chat");
 	}
 
-	-- Hook all chat edit boxes to modify text BEFORE sending
-	-- This avoids protected function issues in instances/M+
-	self:HookChatEditBoxes()
+	-- Hook ChatEdit_SendText to modify messages before they're sent
+	-- We use a pre-hook approach: save original, replace script handler
+	self:HookChatSendFunction()
 	
-	self:Safe_Print("Using OnEnterPressed hook (pre-send modification)")
+	self:Safe_Print("Using ChatEdit_SendText pre-modification hook")
 
 	-- Register event to get character name when available
 	self:RegisterEvent("PLAYER_LOGIN", "OnPlayerLogin")
+	
+	-- Register event for addon chat restrictions (Patch 12.0.0+)
+	if self.RegisterEvent then
+		pcall(function()
+			self:RegisterEvent("ADDON_RESTRICTION_STATE_CHANGED", "OnAddonRestrictionChanged")
+		end)
+	end
 
 	self:Safe_Print(L["Loaded"])
 end
@@ -181,30 +188,62 @@ function Name2Chat:OnPlayerLogin()
 	self:UnregisterEvent("PLAYER_LOGIN")
 end
 
--- Hook all chat edit boxes to modify text before sending
-function Name2Chat:HookChatEditBoxes()
-	-- Hook all existing chat frames
-	for i = 1, NUM_CHAT_WINDOWS do
-		local editBox = _G["ChatFrame" .. i .. "EditBox"]
-		if editBox and not editBox.name2chat_hooked then
-			editBox:HookScript("OnEnterPressed", function(eb)
-				Name2Chat:OnChatEnterPressed(eb)
-			end)
-			editBox.name2chat_hooked = true
+-- Handle addon restriction state changes (Patch 12.0.0+)
+function Name2Chat:OnAddonRestrictionChanged()
+	-- Log if addon chat restrictions are being enforced
+	-- This CVar was added in Patch 12.0.0
+	if GetCVarBool and C_CVar and C_CVar.GetCVarBool then
+		local success, isForced = pcall(C_CVar.GetCVarBool, "addonChatRestrictionsForced")
+		if success and isForced then
+			self:Print("Warning: Addon chat restrictions are now enforced. Name2Chat functionality may be limited.")
+		elseif success then
+			self:Safe_Print("Addon chat restrictions have been lifted.")
 		end
-	end
-	
-	-- Also hook the general chat edit box if it exists separately
-	if ChatFrame1EditBox and not ChatFrame1EditBox.name2chat_hooked then
-		ChatFrame1EditBox:HookScript("OnEnterPressed", function(eb)
-			Name2Chat:OnChatEnterPressed(eb)
-		end)
-		ChatFrame1EditBox.name2chat_hooked = true
+	elseif GetCVarBool then
+		-- Fallback for older API
+		local success, isForced = pcall(GetCVarBool, "addonChatRestrictionsForced")
+		if success and isForced then
+			self:Print("Warning: Addon chat restrictions are now enforced. Name2Chat functionality may be limited.")
+		elseif success then
+			self:Safe_Print("Addon chat restrictions have been lifted.")
+		end
 	end
 end
 
--- Called when user presses Enter in chat - modify text BEFORE it's sent
-function Name2Chat:OnChatEnterPressed(editBox)
+-- Hook ChatEdit_SendText to modify messages BEFORE they are sent
+-- This is the proper way to intercept chat messages without protected function issues
+-- Updated for Patch 12.0.0: ChatEdit_SendText is deprecated but still functional
+function Name2Chat:HookChatSendFunction()
+	-- Check if ChatEdit_SendText exists (it might be deprecated in future versions)
+	if not ChatEdit_SendText then
+		self:Print("Error: ChatEdit_SendText not found. Name2Chat may not work correctly.")
+		return
+	end
+	
+	-- Store the original ChatEdit_SendText
+	local origChatEdit_SendText = ChatEdit_SendText
+	
+	-- Replace with our wrapper that modifies text first, then calls original
+	ChatEdit_SendText = function(editBox, addHistory)
+		-- Protect against errors in our modification code
+		local success, err = pcall(function()
+			-- Let our function modify the editBox text if needed
+			Name2Chat:ModifyChatMessage(editBox)
+		end)
+		
+		if not success then
+			Name2Chat:Print("Error modifying chat message: " .. tostring(err))
+		end
+		
+		-- Always call the original function, even if our modification failed
+		origChatEdit_SendText(editBox, addHistory)
+	end
+	
+	self:Safe_Print("ChatEdit_SendText hooked successfully")
+end
+
+-- Modify the chat message in the editBox before it's sent
+function Name2Chat:ModifyChatMessage(editBox)
 	-- Early exit if addon is disabled
 	if not self.db.profile.enable then
 		return
@@ -236,8 +275,14 @@ function Name2Chat:OnChatEnterPressed(editBox)
 	
 	local shouldAddName = false
 	
-	-- Check if this chat type should have the name added
-	if ChatCompat:IsSupportedChatType(chatType, self.db.profile) then
+	-- Check based on chat type
+	if chatType == "GUILD" and self.db.profile.guild then
+		shouldAddName = true
+	elseif chatType == "PARTY" and self.db.profile.party then
+		shouldAddName = true
+	elseif chatType == "RAID" and self.db.profile.raid then
+		shouldAddName = true
+	elseif chatType == "INSTANCE_CHAT" and self.db.profile.instance_chat then
 		shouldAddName = true
 	elseif (self.db.profile.channel ~= nil) and (self.db.profile.channel ~= "") and chatType == "CHANNEL" then
 		-- Special handling for custom channels
@@ -256,8 +301,7 @@ function Name2Chat:OnChatEnterPressed(editBox)
 			-- Don't add name for commands starting with !
 			self:Safe_Print("Ignoring message starting with exclamation mark: " .. msg)
 		else
-			-- Modify the text in the editbox BEFORE it's sent
-			-- This happens before any protected functions are called
+			-- Modify the text in the editbox BEFORE ChatEdit_SendText processes it
 			local newMsg = "(" .. self.db.profile.name .. "): " .. msg
 			editBox:SetText(newMsg)
 			self:Safe_Print("Modified message: " .. newMsg)

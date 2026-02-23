@@ -1,11 +1,11 @@
 ---------------------------------------------------------------------
 -- ChatCompat.lua
 -- Abstraction layer for Retail / Classic Chat APIs
--- GitHub Copilot understands this structure very well
+-- Updated for Patch 12.0.0 (Midnight)
 -- 
 -- Purpose:
 -- Unifies access to Chat APIs across all WoW versions
--- (Retail, Wrath Classic, Classic Era, Burning Crusade, Cataclysm)
+-- (Retail 12.0+, Classic Era, Burning Crusade, Wrath, Cataclysm)
 ---------------------------------------------------------------------
 
 local ChatCompat = {}
@@ -14,11 +14,12 @@ local ChatCompat = {}
 -- API Detection
 ---------------------------------------------------------------------
 local function detectApi()
-    -- Retail and Wrath Classic use C_ChatInfo
+    -- Since 12.0.0, always use C_ChatInfo.SendChatMessage
+    -- The old global SendChatMessage is deprecated but still available via fallback
     local hasCChatInfo = type(C_ChatInfo) == "table"
         and type(C_ChatInfo.SendChatMessage) == "function"
 
-    -- INSTANCE_CHAT is only available in Retail and Wrath+
+    -- INSTANCE_CHAT is available in Retail and Wrath+
     local supportsInstanceChat = ChatTypeInfo and ChatTypeInfo["INSTANCE_CHAT"] ~= nil
 
     return {
@@ -32,13 +33,18 @@ ChatCompat.api = detectApi()
 ---------------------------------------------------------------------
 -- Unified SendChatMessage Wrapper
 -- Sends a message via the correct API endpoint
+-- 
+-- Note: SendChatMessage is deprecated in Retail 12.0+ but still available
+-- via Deprecated_ChatInfo.lua fallback. In Classic variants, it's the
+-- primary API and not deprecated.
 ---------------------------------------------------------------------
 function ChatCompat:Send(msg, chatType, language, channel)
     if self.api.useCChatInfo then
-        -- Retail / Wrath Classic
+        -- Retail / Wrath Classic (12.0+: use C_ChatInfo.SendChatMessage)
         return C_ChatInfo.SendChatMessage(msg, chatType, language, channel)
     else
         -- Classic Era / Burning Crusade / Cataclysm Classic
+        -- SendChatMessage is NOT deprecated in these versions
         return SendChatMessage(msg, chatType, language, channel)
     end
 end
@@ -56,15 +62,22 @@ end
 -- environments (M+, raids, PvP) because calling the original function
 -- will still trigger SendChatMessage internally.
 -- 
--- RECOMMENDED: Use HookScript on ChatEditBox "OnEnterPressed" instead.
--- This allows you to modify the text BEFORE the send process begins,
--- avoiding all protected function issues.
+-- PATCH 12.0.0 CHANGES:
+-- - ChatEdit_SendText is now deprecated (but still available via fallback)
+-- - New addon chat restrictions via CVar 'addonChatRestrictionsForced'
+-- - New enum Enum.SendAddonMessageResult.AddOnMessageLockdown
+-- - Event ADDON_RESTRICTION_STATE_CHANGED notifies when restrictions change
+-- - "Secret Values" system can restrict addon operations on tainted paths
+-- 
+-- RECOMMENDED: Use direct text modification on the EditBox BEFORE 
+-- ChatEdit_SendText is called. This is the most compatible approach:
 -- 
 -- Example:
---   editBox:HookScript("OnEnterPressed", function(self)
---       local text = self:GetText()
---       self:SetText(modifiedText)
---   end)
+--   local origChatEdit_SendText = ChatEdit_SendText
+--   ChatEdit_SendText = function(editBox, addHistory)
+--       -- Modify editBox:GetText() and editBox:SetText() here
+--       origChatEdit_SendText(editBox, addHistory)
+--   end
 -- 
 -- This function is kept for backwards compatibility but is not recommended.
 -- addon = your AceAddon with RawHook method
