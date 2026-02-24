@@ -1,8 +1,11 @@
 # Name2Chat Changelog
 
-## Version 4.0.3 (23.02.2026)
+## Version 4.0.3 (24.02.2026)
 
 ### Bug Fixes
+- **Chat blocked during combat (ADDON_ACTION_FORBIDDEN)**: When the player was in combat lockdown (raid, M+, PvP zones), calling `editBox:SetText()` inside the `ChatFrame.OnEditBoxPreSendText` callback tainted the protected `SendChatMessage()` call that followed — causing the Blizzard combat popup to appear and the message to be fully blocked (issue [#33](https://github.com/gOOvER/Name2Chat/issues/33))
+  - **Fix**: Added an `InCombatLockdown()` check at the start of `ModifyChatMessage()`. During combat the function returns immediately without touching the EditBox, so the message is sent as-is (without name prefix) without any error
+  - **Trade-off**: The name prefix cannot be added during combat — this is an unavoidable Blizzard engine restriction that affects all chat-modifying addons (e.g., Prat) since Midnight/TWW
 - **Raid chat inside instances not working**: In WoW instances (raids, LFR, battlegrounds), `/raid` chat is routed by the game as `INSTANCE_CHAT` instead of `RAID`. Enabling "Raid" in the addon settings now also covers `INSTANCE_CHAT` automatically.
 - **Officer chat (`/o`) not covered**: Added explicit handling for `OFFICER` chat type under the guild setting (which already documented `/g and /o` in its description).
 - **Name not being prepended to messages (critical fix)**: Found and resolved root cause
