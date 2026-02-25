@@ -211,8 +211,14 @@ end
 -- Sequenz in SendText(): ParseText(1) → OnPreSendText() → GetText() → SendChatMessage()
 -- D.h.: chatType ist bereits aufgelöst (z.B. /g → "GUILD"), SetText() beeinflusst noch den Send.
 function Name2Chat:HookChatSendFunction()
+	-- ChatFrame.OnEditBoxPreSendText was introduced in Retail Patch 12.0.0 (Midnight/TWW).
+	-- Classic clients (e.g. 1.15.x) may have EventRegistry backported but do NOT fire
+	-- this event, so we must gate the EventRegistry path on the interface version.
+	local _, _, _, tocVersion = GetBuildInfo()
+	local isRetail120Plus = tocVersion >= 120000
+
 	---@diagnostic disable-next-line: undefined-global
-	if EventRegistry then
+	if isRetail120Plus and EventRegistry then
 		---@diagnostic disable-next-line: undefined-global
 		EventRegistry:RegisterCallback("ChatFrame.OnEditBoxPreSendText", function(event, editBox)
 			local success, err = pcall(function()
@@ -224,7 +230,8 @@ function Name2Chat:HookChatSendFunction()
 		end, Name2Chat)
 		self:Print(L["hook_active_eventregistry"])
 	else
-		-- Fallback for older clients without EventRegistry
+		-- Fallback for Classic clients and older Retail builds that do not support
+		-- ChatFrame.OnEditBoxPreSendText.
 		---@diagnostic disable-next-line: undefined-global
 		local mixin = ChatFrameEditBoxMixin
 		if mixin and mixin.SendText then

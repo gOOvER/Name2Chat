@@ -1,5 +1,12 @@
 # Name2Chat Changelog
 
+## Version 4.0.4 (25.02.2026)
+
+### Bug Fixes
+- **Classic HC realms / Classic Era 1.15.x broken after 4.0.3**: Classic clients (e.g. 1.15.8) have `EventRegistry` backported but do **not** fire the `ChatFrame.OnEditBoxPreSendText` event — that event is exclusive to Retail Patch 12.0.0 (Midnight/TWW). Because the old `if EventRegistry then` check was satisfied, the `ChatFrameEditBoxMixin.SendText` fallback was never reached and the hook was completely silent. Fixed by gating the `EventRegistry` path on `GetBuildInfo()` interface version ≥ 120000. Classic clients now correctly use the `ChatFrameEditBoxMixin.SendText` hook.
+
+---
+
 ## Version 4.0.3 (24.02.2026)
 
 ### Bug Fixes
