@@ -49,3 +49,4 @@ L["debug_skip_exclamation"] = "ModifyChatMessage: skipping, message starts with 
 L["debug_modified"] = "ModifyChatMessage: OK -> %s"
 L["debug_chattype_not_active"] = "ModifyChatMessage: chatType '%s' not in active channel list. guild=%s party=%s raid=%s instance=%s"
 L["debug_combat_lockdown"] = "ModifyChatMessage: in combat lockdown, skipping text modification to avoid taint"
+L["debug_mythic_plus"] = "ModifyChatMessage: in Mythic+, skipping text modification to avoid taint"
