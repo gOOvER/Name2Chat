@@ -262,10 +262,10 @@ function Name2Chat:ModifyChatMessage(editBox)
 		return
 	end
 
-	-- Don't modify messages during combat lockdown to avoid ADDON_ACTION_FORBIDDEN.
+	-- Don't modify messages during combat or active encounters to avoid ADDON_ACTION_FORBIDDEN.
 	-- WoW treats editBox:SetText() in this context as tainting the protected
 	-- SendChatMessage() call that follows. The message will still be sent as-is.
-	if InCombatLockdown() then
+	if InCombatLockdown() or C_InstanceEncounter.IsEncounterInProgress() then
 		self:Safe_Print(L["debug_combat_lockdown"])
 		return
 	end
