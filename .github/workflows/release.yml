@@ -37,12 +37,16 @@ jobs:
     
     steps:
     - name: Checkout code
-      uses: actions/checkout@v4
+      uses: actions/checkout@v7
       
     - name: Determine version
       id: version
+      env:
+        EVENT_NAME: ${{ github.event_name }}
+        INPUT_VERSION: ${{ github.event.inputs.version }}
+        INPUT_PRERELEASE: ${{ github.event.inputs.prerelease }}
       run: |
-        if [[ "${{ github.event_name }}" == "push" ]]; then
+        if [[ "$EVENT_NAME" == "push" ]]; then
           # Extract version from tag
           VERSION=${GITHUB_REF#refs/tags/v}
           TAG_NAME=$GITHUB_REF_NAME
@@ -55,18 +59,18 @@ jobs:
           fi
         else
           # Use manual input
-          VERSION="${{ github.event.inputs.version }}"
+          VERSION="$INPUT_VERSION"
           
           # Allow automatic version detection from CHANGELOG when requested
           if [[ -z "$VERSION" || "$VERSION" == "auto" ]]; then
             if [ -f CHANGELOG.md ]; then
-              VERSION=$(awk '/^## Version / {print $3; exit}' CHANGELOG.md)
+              VERSION=$(awk '/^## \[?[0-9]+\.[0-9]+\.[0-9]+/ {gsub(/^## (Version )?\[?|\]?.*$/, "", $0); print $0; exit} /^## Version / {print $3; exit}' CHANGELOG.md)
               echo "ℹ️ Auto-detected version from CHANGELOG.md: $VERSION"
             fi
           fi
 
           TAG_NAME="v$VERSION"
-          IS_PRERELEASE="${{ github.event.inputs.prerelease }}"
+          IS_PRERELEASE="$INPUT_PRERELEASE"
         fi
         
         echo "version=$VERSION" >> $GITHUB_OUTPUT
@@ -125,7 +129,7 @@ jobs:
     
     steps:
     - name: Checkout code
-      uses: actions/checkout@v4
+      uses: actions/checkout@v7
       
     - name: Create and push tag
       run: |
@@ -161,7 +165,7 @@ jobs:
     
     steps:
     - name: Checkout code
-      uses: actions/checkout@v4
+      uses: actions/checkout@v7
       with:
         fetch-depth: 0  # Fetch full history for proper changelog generation
 
@@ -226,7 +230,7 @@ jobs:
     - name: Run luacheck (non-blocking)
       run: |
         echo "Running luacheck for code quality (non-blocking)..."
-        luacheck --no-color --codes Name2Chat.lua || echo "Luacheck found issues, but continuing with build..."
+        luacheck --no-color --codes ChatCompat.lua Name2Chat.lua || echo "Luacheck found issues, but continuing with build..."
         
     - name: Package with BigWigs Packager
       id: bigwigs_package
@@ -234,10 +238,11 @@ jobs:
       with:
         args: -S  # Create multi-version TOCs automatically
       env:
-        CF_API_KEY: ${{ needs.validate-release.outputs.is_prerelease == 'true' && '' || secrets.CF_API_KEY }}
+        CF_API_TOKEN: ${{ needs.validate-release.outputs.is_prerelease == 'true' && '' || (secrets.CF_API_TOKEN || secrets.CF_API_KEY) }}
         WAGO_API_TOKEN: ${{ needs.validate-release.outputs.is_prerelease == 'true' && '' || secrets.WAGO_API_TOKEN }}
         WOWI_API_TOKEN: ${{ needs.validate-release.outputs.is_prerelease == 'true' && '' || secrets.WOWI_API_TOKEN }}
         # Disable GitHub Release upload by BigWigs Packager; we handle GH release separately
+        GH_API_TOKEN: ''
         GITHUB_OAUTH: ''
       continue-on-error: true
         
@@ -287,6 +292,7 @@ jobs:
         
         # Copy addon files (version already updated earlier)
         cp Name2Chat.toc temp_package/Name2Chat/
+        cp ChatCompat.lua temp_package/Name2Chat/
         cp Name2Chat.lua temp_package/Name2Chat/
         cp embeds.xml temp_package/Name2Chat/ 2>/dev/null || echo "No embeds.xml found"
         cp locale.xml temp_package/Name2Chat/ 2>/dev/null || echo "No locale.xml found"
@@ -322,7 +328,7 @@ jobs:
         
     - name: Upload manual package artifact
       if: ${{ steps.manual_package.outputs.manual_package_created == 'true' }}
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         name: Name2Chat-${{ needs.validate-release.outputs.version }}-manual
         path: "*.zip"
@@ -330,7 +336,7 @@ jobs:
         
     - name: Upload BigWigs package artifact
       if: ${{ steps.bigwigs_package.outcome == 'success' && steps.manual_package.outputs.manual_package_created != 'true' }}
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         name: Name2Chat-${{ needs.validate-release.outputs.version }}-bigwigs
         path: ".release/*.zip"
@@ -382,13 +388,13 @@ jobs:
     
     steps:
     - name: Checkout code
-      uses: actions/checkout@v4
+      uses: actions/checkout@v7
       with:
         fetch-depth: 0  # Fetch full history for changelog generation
       
     - name: Download BigWigs package artifact
       id: download_bigwigs
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v8
       with:
         name: Name2Chat-${{ needs.validate-release.outputs.version }}-bigwigs
         path: ./artifacts
@@ -396,7 +402,7 @@ jobs:
         
     - name: Download manual package artifact
       id: download_manual
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v8
       with:
         name: Name2Chat-${{ needs.validate-release.outputs.version }}-manual
         path: ./artifacts
@@ -444,6 +450,7 @@ jobs:
         
         # Copy all necessary files
         cp Name2Chat.toc "$PACKAGE_NAME/"
+        cp ChatCompat.lua "$PACKAGE_NAME/"
         cp Name2Chat.lua "$PACKAGE_NAME/"
         cp embeds.xml "$PACKAGE_NAME/" 2>/dev/null || echo "No embeds.xml found"
         cp locale.xml "$PACKAGE_NAME/" 2>/dev/null || echo "No locale.xml found"
@@ -539,10 +546,10 @@ jobs:
         if [ -f "CHANGELOG.md" ]; then
           echo "📄 Extracting changelog for version $VERSION from CHANGELOG.md..."
           
-          # Extract the section for this version
+          # Extract the section for this version (supports both Keep a Changelog "## [X.Y.Z]" and "## Version X.Y.Z")
           CHANGELOG_CONTENT=$(awk -v version="$VERSION" '
             BEGIN { found=0; capturing=0; }
-            /^## Version / {
+            /^## (\[|Version )/ {
               if (capturing) exit;
               if (index($0, version) > 0) {
                 capturing=1;
@@ -590,7 +597,7 @@ jobs:
         **Version:** $VERSION  
         **Status:** 🧪 **Testing/Development**  
         **Release Date:** $(date +"%B %d, %Y")  
-        **Compatible with:** Retail, Classic Era, Burning Crusade Classic, Wrath Classic, Cataclysm Classic
+        **Compatible with:** Retail (Midnight/TWW), Mists of Pandaria Classic, Cataclysm Classic, Wrath Classic, Burning Crusade Classic, World of Warcraft: Forever, Classic Era
         
         ### 📦 Download & Installation
         1. **⚠️ Backup your settings** before installing
@@ -658,7 +665,7 @@ jobs:
         
         **Version:** $VERSION  
         **Release Date:** $(date +"%B %d, %Y")  
-        **Compatible with:** Retail, Classic Era, Burning Crusade Classic, Wrath Classic, Cataclysm Classic
+        **Compatible with:** Retail (Midnight/TWW), Mists of Pandaria Classic, Cataclysm Classic, Wrath Classic, Burning Crusade Classic, World of Warcraft: Forever, Classic Era
         
         ### 📦 Quick Installation
         1. Download the \`${{ steps.find_package.outputs.package_name }}.zip\` file below
@@ -695,11 +702,13 @@ jobs:
         
         | WoW Version | Interface | Status | Notes |
         |-------------|-----------|--------|-------|
-        | **Retail (The War Within)** | 110205 | ✅ Fully Supported | Latest features |
-        | **Classic Era** | 11508 | ✅ Fully Supported | Vanilla experience |
-        | **Burning Crusade Classic** | 20504 | ✅ Fully Supported | TBC content |
-        | **Wrath Classic** | 30403 | ✅ Fully Supported | WotLK raids |
-        | **Cataclysm Classic** | 40400 | ✅ Fully Supported | Cata dungeons |
+        | **Retail (Midnight / TWW)** | 120100 | ✅ Fully Supported | Latest features |
+        | **Mists of Pandaria Classic** | 50504 | ✅ Fully Supported | MoP content |
+        | **Cataclysm Classic** | 40402 | ✅ Fully Supported | Cata dungeons |
+        | **Wrath Classic** | 30405 | ✅ Fully Supported | WotLK raids |
+        | **Burning Crusade Classic** | 20506 | ✅ Fully Supported | TBC / Anniversary |
+        | **World of Warcraft: Forever** | 16001 | ✅ Fully Supported | Forever client |
+        | **Classic Era / HC / SoD** | 11509 / 11508 | ✅ Fully Supported | Vanilla experience |
         
         ### � Quick Start Commands
         - \`/n2c\` or \`/Name2Chat\` - Toggle addon on/off
@@ -719,7 +728,7 @@ jobs:
         ### �️ Technical Information
         - **Build System:** Professional CI/CD with GitHub Actions
         - **Code Quality:** Automated luacheck validation
-        - **Packaging:** BigWigs Packager v2.4+ for multi-version TOCs
+        - **Packaging:** BigWigs Packager v2.7+ for multi-version TOCs
         - **Testing:** Comprehensive validation across all WoW versions
         
         ### 🔗 Developer & Support
@@ -739,7 +748,7 @@ jobs:
         echo "release_notes_file=release_notes.md" >> $GITHUB_OUTPUT
         
     - name: Create GitHub Release
-      uses: softprops/action-gh-release@v2
+      uses: softprops/action-gh-release@v3
       with:
         tag_name: ${{ needs.validate-release.outputs.tag_name }}
         name: Name2Chat v${{ needs.validate-release.outputs.version }}
@@ -804,7 +813,7 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### 🔧 Setup API Keys" >> $GITHUB_STEP_SUMMARY
           echo "To enable automatic uploads to addon platforms, add these secrets:" >> $GITHUB_STEP_SUMMARY
-          echo "- \`CF_API_KEY\` for CurseForge" >> $GITHUB_STEP_SUMMARY
+          echo "- \`CF_API_TOKEN\` (or \`CF_API_KEY\`) for CurseForge" >> $GITHUB_STEP_SUMMARY
           echo "- \`WOWI_API_TOKEN\` for WoWInterface" >> $GITHUB_STEP_SUMMARY
           echo "- \`WAGO_API_TOKEN\` for Wago" >> $GITHUB_STEP_SUMMARY
         fi

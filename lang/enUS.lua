@@ -1,12 +1,19 @@
-﻿local debug = false
+local debug = false
 --[===[@debug@
 debug = true
 --@end-debug@]===]
 
 local L = LibStub("AceLocale-3.0"):NewLocale("Name2Chat", "enUS", true, debug)
 
+-- Option sections
+L["group_general"] = "General"
+L["group_channels"] = "Chat channels"
+L["group_behaviour"] = "Behaviour"
+L["group_received"] = "Received messages"
+L["group_advanced"] = "Advanced"
+
 L["channel"] = "Channel"
-L["channel_desc"] = "Add name to chat messages in this custom channel."
+L["channel_desc"] = "Add name to chat messages in this custom channel (comma-separated for multiple channels)."
 L["config"] = "Configuration"
 L["config_desc"] = "Open configuration dialog."
 L["debug"] = "Debug"
@@ -16,7 +23,7 @@ L["enable_desc"] = "Enable adding your name to chat messages."
 L["guild"] = "Guild"
 L["guild_desc"] = "Add name to guild chat messages (/g and /o)."
 L["hideOnMatchingCharName"] = "Hide name if it matches your character's name"
-L["hideOnMatchingCharName_desc"] = "If the name specified above matches your current character's name, Incognito will not add it again if this option is checked."
+L["hideOnMatchingCharName_desc"] = "If the name specified above matches your current character's name, Name2Chat will not add it again. Also applies to guild notes: a note equal to the sender's character name is not shown."
 L["instance_chat"] = "Instance"
 L["instance_chat_desc"] = "Add name to instance chat messages, e.g., LFR and battlegrounds (/i)."
 L["Loaded"] = "Loaded."
@@ -28,10 +35,19 @@ L["raid"] = "Raid"
 L["raid_desc"] = "Add name to raid chat messages (/raid)."
 L["ignoreExclamationMark"] = "Ignore adding name to messages starting with !"
 L["ignoreExclamationMark_desc"] = "If a message begins with an exclamation mark (!), the name will not be added. This is useful for addon commands like !keys."
+L["combat"] = "Add name in combat"
+L["combat_desc"] = "Also add your name while in combat, except when the game locks chat messaging (boss encounters, Mythic+, etc.). If a message gets blocked in combat, disable this option."
+L["guildNote"] = "Show guild note for players without the addon"
+L["guildNote_desc"] = "On received guild and officer messages that don't start with a (Name): prefix, show the sender's public guild note in front of the message. Display only: other players don't see it."
+L["debug_guildnote_no_filter"] = "Guild note: no chat message filter API found, feature disabled"
+L["debug_guildnote"] = "GuildNoteFilter: event=%s, author=%s, guid=%s, msg=%s"
 
 -- Status / warning messages
 L["hook_active_eventregistry"] = "Hook active (ChatFrame.OnEditBoxPreSendText)"
 L["hook_active_mixin"] = "Hook active (ChatFrameEditBoxMixin.SendText fallback)"
+L["hook_active_chatedit"] = "Hook active (ChatEdit_SendText legacy fallback)"
+L["hook_active_communities"] = "Hook active (Guild & Communities window)"
+L["hook_error_communities"] = "Guild & Communities window: input box not found, name will not be added there"
 L["hook_error_no_entry"] = "ERROR: No hook entry point found."
 L["hook_error_modify"] = "Error modifying chat message: "
 L["warn_restrictions_enforced"] = "Warning: Addon chat restrictions are now enforced. Name2Chat functionality may be limited."
@@ -42,10 +58,16 @@ L["debug_hook_fired"] = "ModifyChatMessage: hook fired"
 L["debug_disabled"] = "ModifyChatMessage: addon is DISABLED, skipping"
 L["debug_name_empty"] = "ModifyChatMessage: name is EMPTY, skipping"
 L["debug_name_matches_char"] = "ModifyChatMessage: name matches character name and hideOnMatchingCharName is set, skipping"
+L["debug_name_compare"] = "ModifyChatMessage: hideOnMatchingCharName: name=%s, character=%s"
 L["debug_msg_empty"] = "ModifyChatMessage: message is empty, skipping"
 L["debug_chattype"] = "ModifyChatMessage: chatType=%s, name=%s"
 L["debug_should_add"] = "ModifyChatMessage: shouldAddName=%s"
 L["debug_skip_exclamation"] = "ModifyChatMessage: skipping, message starts with ! (ignoreExclamationMark active)"
+L["debug_slash_command"] = "ModifyChatMessage: skipping slash command"
+L["debug_already_prefixed"] = "ModifyChatMessage: message already has name prefix, skipping"
+L["debug_msg_too_long"] = "ModifyChatMessage: prefixed message exceeds 255 bytes, skipping"
 L["debug_modified"] = "ModifyChatMessage: OK -> %s"
 L["debug_chattype_not_active"] = "ModifyChatMessage: chatType '%s' not in active channel list. guild=%s party=%s raid=%s instance=%s"
-L["debug_combat_lockdown"] = "ModifyChatMessage: in combat lockdown, skipping text modification to avoid taint"
+L["debug_combat_lockdown"] = "ModifyChatMessage: in combat lockdown or active encounter, skipping text modification to avoid taint"
+L["debug_combat_chat_lockdown"] = "ModifyChatMessage: in combat and chat messaging is locked down (or cannot be checked), skipping"
+L["debug_mythic_plus"] = "ModifyChatMessage: in Mythic+, skipping text modification to avoid taint"

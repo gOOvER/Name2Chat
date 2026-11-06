@@ -1,6 +1,24 @@
-## Interface: 120000, 120001, 50503, 40402, 30405, 20505, 11508
+## Interface: 120100, 120007, 120005, 120001, 120000, 110207, 50504, 50503, 40402, 38002, 30405, 20506, 20505, 16001, 11509, 11508
+## Interface-Retail: 120100, 120007, 120005, 120001, 120000, 110207
+## Interface-Mists: 50504, 50503
+## Interface-Cata: 40402
+## Interface-Wrath: 30405
+## Interface-TBC: 20506, 20505
+## Interface-BCC: 20506, 20505
+## Interface-Forever: 16001
+## Interface-Classic: 11509, 11508
 ## Title: Name2Chat
 ## Notes: Adds your name to chat messages
+## Notes-deDE: Fügt deinen Namen zu Chatnachrichten hinzu
+## Notes-frFR: Ajoute votre nom aux messages de discussion
+## Notes-esES: Añade tu nombre a los mensajes de chat
+## Notes-esMX: Agrega tu nombre a los mensajes de chat
+## Notes-itIT: Aggiunge il tuo nome ai messaggi della chat
+## Notes-ptBR: Adiciona seu nome às mensagens de chat
+## Notes-ruRU: Добавляет ваше имя к сообщениям в чате
+## Notes-koKR: 채팅 메시지에 이름을 추가합니다
+## Notes-zhCN: 在聊天消息前添加你的名字
+## Notes-zhTW: 在聊天訊息前加入你的名字
 ## Author: gOOvER
 ## Version: @project-version@
 ## SavedVariables: Name2ChatDB

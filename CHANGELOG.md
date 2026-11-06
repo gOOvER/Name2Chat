@@ -1,4 +1,60 @@
-# Name2Chat Changelog
+# Changelog
+
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [4.1.0] - 2026-11-06
+
+### Added
+- **Universal 4-Tier Multi-Client Hook Architecture**:
+  - **Tier 1 (`EventRegistry`)**: Feature-detects `ChatFrameEditBoxMixin.OnPreSendText` (in addition to `tocVersion >= 120000` and WoW Forever `16001`, [#40](https://github.com/gOOvER/Name2Chat/issues/40)) to register `ChatFrame.OnEditBoxPreSendText`.
+  - **Tier 2 (`ChatFrameEditBoxMixin.SendText`)**: Hooks both `ChatFrameEditBoxMixin.SendText` and all already-created `ChatFrame1EditBox`–`ChatFrameN` frames so XML `Mixin()` copies made prior to addon load are updated.
+  - **Tier 3 (`ChatEdit_SendText`)**: Hooks global `ChatEdit_SendText` for Classic Era 1.15.8 ([#35](https://github.com/gOOvER/Name2Chat/issues/35)) and TBC Anniversary 2.5.5 ([#36](https://github.com/gOOvER/Name2Chat/issues/36)) clients where `ChatFrameEditBoxMixin` does not exist.
+  - **Tier 4 (`ChatCompat:HookSendChatMessage`)**: Direct `C_ChatInfo.SendChatMessage` / `SendChatMessage` hook as final safety fallback.
+- **Guild & Communities Window (`J`) Support ([#38](https://github.com/gOOvER/Name2Chat/issues/38))**:
+  - Hooks `CommunitiesFrame.Chat:SendMessage` and `CommunitiesFrame.ChatEditBox` (on load and via `ADDON_LOADED` for `Blizzard_Communities`) and handles `COMMUNITIES_CHANNEL` in `ModifyChatMessage()` so messages typed in the Guild/Communities panel (`J`) or linked Community chat tabs properly receive your name prefix.
+- **Mythic+ Keystone & Active Boss Encounter Protection ([#37](https://github.com/gOOvER/Name2Chat/issues/37), [PR #39](https://github.com/gOOvER/Name2Chat/pull/39))**:
+  - Added checks for `C_ChallengeMode.IsChallengeModeActive()`, `C_InstanceEncounter.IsEncounterInProgress()`, `IsEncounterInProgress()`, and `C_ChatInfo.InChatMessagingLockdown()` so chat messages are never tainted or blocked during Mythic+ runs or while dead during an active boss encounter.
+- **World of Warcraft: Forever Support & Features ([#40](https://github.com/gOOvER/Name2Chat/issues/40))**:
+  - Added Interface `16001` (`## Interface-Forever: 16001`) and latest Retail/Classic interface versions (`120100`, `120007`, `120005`, `50504`, `20506`) to `Name2Chat.toc`, CI workflows, and release notes.
+  - Added feature detection for `ChatFrameEditBoxMixin:OnPreSendText()` and `IsSecretValue` guards on `UnitName("player")`.
+  - Added **"Add name in combat"** (`combat`) option: allows adding the name in combat when `C_ChatInfo.InChatMessagingLockdown()` explicitly reports `false` (outside Boss Encounters and Mythic+).
+  - Added **"Show guild note for players without the addon"** (`guildNote`) option: local display filter for incoming guild/officer messages that prepends the sender's public guild note when they don't use Name2Chat.
+  - Reorganized the Options panel into clean sections (*General*, *Chat channels*, *Behaviour*, *Received messages*, *Advanced*) with full-width toggles while preserving 100% compatibility with existing `Name2ChatDB` settings.
+- **Multi-Channel Custom Channel Support**: The `channel` option now supports comma- or semicolon-separated channel names (e.g. `Channel1, Channel2`), Community stream names, and channel numbers with automatic whitespace trimming.
+- **Full Multi-Version TOC Metadata**: Added explicit per-flavor TOC directives (`Interface-Retail`, `Interface-Mists`, `Interface-Cata`, `Interface-Wrath`, `Interface-BCC`, `Interface-Classic`) and localized `Notes-*` entries for all 11 supported languages.
+- **Complete Localization Coverage**: Added missing locale strings (`debug_combat_lockdown`, `debug_mythic_plus`, `debug_slash_command`, `debug_already_prefixed`, `debug_msg_too_long`, `hook_active_chatedit`, `hook_active_communities`) across all 11 locale files (`enUS`, `deDE`, `esES`, `esMX`, `frFR`, `itIT`, `koKR`, `ptBR`, `ruRU`, `zhCN`, `zhTW`).
+
+### Changed
+- **Clean Login Output**: Changed hook activation status messages (`hook_active_eventregistry`, `hook_active_mixin`, `hook_active_chatedit`, `hook_active_communities`) from `Print` to `Safe_Print` so chat is no longer spammed on every login or `/reload` when Debug mode is disabled.
+- **Modernized `ChatCompat` (v4)**: Integrated `ChatCompat` directly into `Name2Chat.lua` with `IsSecretValue()`, `IsEncounterActive()`, `IsMythicPlusActive()`, `GetChatMessagingLockdownState()`, `IsChatMessagingLockedDown()`, and `IsChatRestricted()` helpers.
+- **Updated GitHub Actions & BigWigs Packager Config**:
+  - Updated `actions/checkout` (`v4` → `v7`), `actions/upload-artifact` (`v4` → `v7`), `actions/download-artifact` (`v4` → `v8`), and `softprops/action-gh-release` (`v2` → `v3`).
+  - Updated `BigWigsMods/packager@v2` (`v2.7.0`) integration to use non-deprecated `CF_API_TOKEN` / `GH_API_TOKEN` environment variables (with automatic fallback to `CF_API_KEY`) and configured `enable-toc-creation: yes` and `markup-type: markdown` for `CHANGELOG.md` in `.pkgmeta`.
+- **Case-Insensitive Character Name Matching**: `hideOnMatchingCharName` now compares character names case-insensitively and initializes `character_name` immediately on load/reload via `GetCharacterName()`.
+- **Leader Chat Type Support**: Added `PARTY_LEADER`, `RAID_LEADER`, and `INSTANCE_CHAT_LEADER` handling alongside `PARTY`, `RAID`, and `INSTANCE_CHAT`.
+
+### Fixed
+- **Classic Era 1.15.8 & TBC Anniversary 2.5.5 "No hook entry point found" ([#35](https://github.com/gOOvER/Name2Chat/issues/35), [#36](https://github.com/gOOvER/Name2Chat/issues/36))**: Fixed silent failure on Classic 1.15.8 and TBC Anniversary where `ChatFrameEditBoxMixin` was absent and no fallback to `ChatEdit_SendText` / `SendChatMessage` existed.
+- **Chat Blocked in Mythic+ & During Boss Encounters ([#37](https://github.com/gOOvER/Name2Chat/issues/37), [PR #39](https://github.com/gOOvER/Name2Chat/pull/39))**: Fixed `ADDON_ACTION_FORBIDDEN` taint in Mythic+ keystone dungeons and when dead while a boss encounter is still in progress.
+- **Guild & Communities Panel (`J`) Not Adding Name ([#38](https://github.com/gOOvER/Name2Chat/issues/38))**: Fixed messages typed in the Guild & Communities window (`J`) bypassing the main chat edit box hook.
+- **Slash Commands & Whispers Leaking to Chat on Classic (Critical)**: Fixed a critical bug in non-`EventRegistry` hooks where typing any slash command (`/reload`, `/n2c`, `/afk`, `/w`, etc.) while an active channel like Guild chat was sticky caused `Name2Chat` to prepend `(Name): ` before `ParseText(1)` ran, turning slash commands and whispers into public Guild/Party/Raid messages.
+- **Double-Prefixing from Chat History**: Fixed an issue where recalling a previously sent message via `Alt+Up` in the chat edit box prepended `(Name): ` a second time.
+- **255-Byte Chat Limit & Hyperlink Truncation**: Added a 255-byte length guard (`MAX_CHAT_BYTES`) so long messages or trailing item/keystone hyperlinks (`|H...|h`) are never truncated or rejected by `SendChatMessage`.
+- **Missing `ChatCompat.lua` in Release Fallback Packaging**: Added `ChatCompat.lua` to manual and emergency packaging steps in `.github/workflows/release.yml` and to `luacheck` in `.luacheckrc`, `quality.yml`, and `test.yml`.
+- **Legacy Addon Name in `enUS.lua`**: Fixed leftover reference to `"Incognito"` in `hideOnMatchingCharName_desc`.
+
+### Security
+- **Slash Command & Whisper Leak Prevention**: Explicitly blocks prefixing any message starting with `/` (`StartsWithSlash`) and resolves `/w` / `/s` channel switches prior to inspection.
+- **Patch 12.0.0 Secret Values Protection**: Added `issecretvalue` guards (`ChatCompat:IsSecretValue`) for `editBox:GetText()`, `chatType`, and `channelTarget` to prevent taint/secret value errors in Retail 12.0+.
+- **GitHub Actions Hardening**: Added least-privilege `permissions: contents: read` to `quality.yml` and `test.yml`, and moved workflow dispatch inputs in `release.yml` to `env:` variables to prevent shell script injection.
+
+### Removed
+- **Unused External Libraries in `.pkgmeta`**: Removed `AceSerializer-3.0`, `AceTab-3.0`, `AceTimer-3.0`, and `AceComm-3.0` from `.pkgmeta` to match `embeds.xml` and reduce release archive size.
+
+---
 
 ## Version 4.0.4 (25.02.2026)
 

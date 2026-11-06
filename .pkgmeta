@@ -1,8 +1,9 @@
 package-as: Name2Chat
 enable-nolib-creation: no
+enable-toc-creation: yes
 
 externals:
-    libs/CallbackHandler-1.0: 
+    libs/CallbackHandler-1.0:
         url: https://repos.wowace.com/wow/ace3/trunk/CallbackHandler-1.0
         tag: latest
     libs/AceAddon-3.0:
@@ -32,24 +33,13 @@ externals:
     libs/AceConfig-3.0:
         url: https://repos.wowace.com/wow/ace3/trunk/AceConfig-3.0
         tag: latest
-    libs/AceSerializer-3.0:
-        url: https://repos.wowace.com/wow/ace3/trunk/AceSerializer-3.0
-        tag: latest
-    libs/AceTab-3.0:
-        url: https://repos.wowace.com/wow/ace3/trunk/AceTab-3.0
-        tag: latest
-    libs/AceTimer-3.0:
-        url: https://repos.wowace.com/wow/ace3/trunk/AceTimer-3.0
-        tag: latest
-    libs/AceComm-3.0:
-        url: https://repos.wowace.com/wow/ace3/trunk/AceComm-3.0
-        tag: latest
     libs/LibStub:
         url: https://repos.wowace.com/wow/libstub/trunk
         tag: latest
-        
-manual-changelog: CHANGELOG.md
-license-output: LICENSE.txt
+
+manual-changelog:
+    filename: CHANGELOG.md
+    markup-type: markdown
 
 ignore:
     - scripts/**

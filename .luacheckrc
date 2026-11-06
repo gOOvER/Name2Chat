@@ -5,37 +5,47 @@ std = "lua51"
 globals = {
   -- Core WoW Addon globals
   "Name2Chat", "Name2ChatDB",
-  
-  -- WoW Global Functions
-  "LibStub", "GetBuildInfo", "UnitName", "GetChannelName",
+
+  -- WoW Global Functions & Constants
+  "LibStub", "GetBuildInfo", "UnitName", "UnitGUID", "GetChannelName",
+  "InCombatLockdown", "C_CVar", "GetCVarBool", "issecretvalue",
+  "C_InstanceEncounter", "IsEncounterInProgress", "C_ChallengeMode",
+  "C_AddOns", "IsAddOnLoaded", "C_Club", "CommunitiesFrame", "Enum",
+  "ChatFrame_GetCommunityAndStreamFromChannel", "ChatFrameUtil",
+  "IsInGuild", "GetTime", "C_GuildInfo", "GuildRoster",
+  "GetNumGuildMembers", "GetGuildRosterInfo",
+  "UNKNOWNOBJECT", "NUM_CHAT_WINDOWS", "Constants",
   "WOW_PROJECT_ID", "WOW_PROJECT_MAINLINE", "WOW_PROJECT_CLASSIC",
   "WOW_PROJECT_BURNING_CRUSADE_CLASSIC", "WOW_PROJECT_WRATH_CLASSIC",
-  "WOW_PROJECT_CATACLYSM_CLASSIC",
-  
+  "WOW_PROJECT_CATACLYSM_CLASSIC", "WOW_PROJECT_MISTS_CLASSIC",
+
   -- Ace3 Framework
-  "AceAddon", "AceConsole", "AceEvent", "AceHook", "AceConfig", 
+  "AceAddon", "AceConsole", "AceEvent", "AceHook", "AceConfig",
   "AceConfigDialog", "AceConfigRegistry", "AceDB", "AceDBOptions",
   "AceLocale",
-  
-  -- WoW Chat API
-  "SendChatMessage", "C_ChatInfo", "ChatFrame_AddMessageEventFilter",
-  "ChatFrame_RemoveMessageEventFilter", "DEFAULT_CHAT_FRAME",
-  
+
+  -- WoW Chat & Event API
+  "SendChatMessage", "C_ChatInfo", "ChatTypeInfo",
+  "EventRegistry", "ChatFrameEditBoxMixin", "ChatFrameEditBox",
+  "ChatEdit_SendText", "ChatEdit_ParseText",
+  "ChatFrame_AddMessageEventFilter", "ChatFrame_RemoveMessageEventFilter",
+  "DEFAULT_CHAT_FRAME",
+
   -- WoW String Functions
-  "strupper", "strlower", "strsub", "strlen", "strfind", "gsub", 
-  "format", "strmatch", "gmatch", "strjoin", "strsplit",
-  
+  "strupper", "strlower", "strsub", "strlen", "strfind", "gsub",
+  "format", "strmatch", "gmatch", "strjoin", "strsplit", "strtrim",
+
   -- WoW Unit Functions
   "GetRealmName", "GetLocale",
-  
+
   -- Standard Lua enhanced by WoW
   "print", "error", "type", "select", "pairs", "ipairs", "next",
   "tostring", "tonumber", "table", "math", "bit", "time", "date",
-  "string", "unpack", "wipe", "tinsert", "tremove", "sort",
-  
+  "string", "unpack", "wipe", "tinsert", "tremove", "sort", "pcall",
+
   -- Slash Commands
   "SLASH_NAME2CHAT1", "SLASH_NAME2CHAT2", "SlashCmdList",
-  
+
   -- Global WoW Environment
   "_G", "SLASH_"
 }
@@ -54,5 +64,6 @@ ignore = {
 
 -- Files to check
 files = {
+  "ChatCompat.lua",
   "Name2Chat.lua"
 }
