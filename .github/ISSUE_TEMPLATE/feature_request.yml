@@ -1,0 +1,52 @@
+name: ✨ Feature Request
+description: Suggest a new feature, option, or client compatibility improvement for Name2Chat
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Have an idea to improve **Name2Chat**? Let us know below!
+
+  - type: dropdown
+    id: wow_flavor
+    attributes:
+      label: Target World of Warcraft Version(s)
+      description: Which WoW client flavor(s) is this feature intended for?
+      multiple: true
+      options:
+        - "All WoW Versions"
+        - "Retail (Midnight / The War Within)"
+        - "Mists of Pandaria Classic"
+        - "Cataclysm Classic"
+        - "Wrath of the Lich King Classic"
+        - "Burning Crusade Classic / Anniversary"
+        - "World of Warcraft: Forever"
+        - "Classic Era / Hardcore / Season of Discovery"
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem or Use Case
+      description: What problem or limitation does this feature solve?
+      placeholder: "When playing on alts in guild/community chat, I would like to..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed Solution
+      description: How should this feature work in-game (options in `/n2c config`, slash commands, chat formatting, etc.)?
+      placeholder: "Add an option in the Behaviour / Channels section that..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional Context or Examples
+      description: Any screenshots, examples from other addons, or WoW API references.
+

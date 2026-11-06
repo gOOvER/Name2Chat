@@ -32,7 +32,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Modernized `ChatCompat` (v4)**: Integrated `ChatCompat` directly into `Name2Chat.lua` with `IsSecretValue()`, `IsEncounterActive()`, `IsMythicPlusActive()`, `GetChatMessagingLockdownState()`, `IsChatMessagingLockedDown()`, and `IsChatRestricted()` helpers.
 - **Updated GitHub Actions & BigWigs Packager Config**:
   - Updated `actions/checkout` (`v4` → `v7`), `actions/upload-artifact` (`v4` → `v7`), `actions/download-artifact` (`v4` → `v8`), and `softprops/action-gh-release` (`v2` → `v3`).
-  - Updated `BigWigsMods/packager@v2` (`v2.7.0`) integration to use non-deprecated `CF_API_TOKEN` / `GH_API_TOKEN` environment variables (with automatic fallback to `CF_API_KEY`) and configured `enable-toc-creation: yes` and `markup-type: markdown` for `CHANGELOG.md` in `.pkgmeta`.
+  - Updated `BigWigsMods/packager@v2` (`v2.7.0`) integration to use non-deprecated `CF_API_TOKEN` / `GH_API_TOKEN` environment variables (with automatic fallback to `CF_API_KEY`), added `include-hidden-files: true` for `.release/*.zip` artifact upload, and configured `enable-toc-creation: yes` and `markup-type: markdown` for `CHANGELOG.md` in `.pkgmeta`.
+  - Added project-specific GitHub Issue Forms (`bug_report.yml`, `feature_request.yml`, `config.yml`) and Pull Request template (`PULL_REQUEST_TEMPLATE.md`).
 - **Case-Insensitive Character Name Matching**: `hideOnMatchingCharName` now compares character names case-insensitively and initializes `character_name` immediately on load/reload via `GetCharacterName()`.
 - **Leader Chat Type Support**: Added `PARTY_LEADER`, `RAID_LEADER`, and `INSTANCE_CHAT_LEADER` handling alongside `PARTY`, `RAID`, and `INSTANCE_CHAT`.
 

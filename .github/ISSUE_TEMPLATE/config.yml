@@ -1,0 +1,12 @@
+blank_issues_enabled: true
+contact_links:
+  - name: 📦 CurseForge Project Page
+    url: https://www.curseforge.com/wow/addons/name2chat
+    about: Download stable releases of Name2Chat on CurseForge
+  - name: 🌐 Wago Addons Page
+    url: https://addons.wago.io/addons/name2chat
+    about: Download stable releases of Name2Chat on Wago Addons
+  - name: 🛠️ Warcraft Wiki API Reference
+    url: https://warcraft.wiki.gg/wiki/World_of_Warcraft_API
+    about: Official World of Warcraft API & TOC format documentation
+

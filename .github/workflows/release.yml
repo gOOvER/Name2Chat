@@ -3,6 +3,10 @@ name: Release
 permissions:
   contents: write
 
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: true
+
 on:
   push:
     tags:
@@ -340,6 +344,7 @@ jobs:
       with:
         name: Name2Chat-${{ needs.validate-release.outputs.version }}-bigwigs
         path: ".release/*.zip"
+        include-hidden-files: true
         retention-days: 90
         
     - name: Verify at least one package exists
@@ -445,25 +450,27 @@ jobs:
         # Update version in TOC file first
         sed -i "s/@project-version@/$VERSION/g" Name2Chat.toc
         
-        # Create package directory
-        mkdir -p "$PACKAGE_NAME"
+        # Create package directory with required AddOn folder name "Name2Chat"
+        mkdir -p temp_emergency/Name2Chat
         
         # Copy all necessary files
-        cp Name2Chat.toc "$PACKAGE_NAME/"
-        cp ChatCompat.lua "$PACKAGE_NAME/"
-        cp Name2Chat.lua "$PACKAGE_NAME/"
-        cp embeds.xml "$PACKAGE_NAME/" 2>/dev/null || echo "No embeds.xml found"
-        cp locale.xml "$PACKAGE_NAME/" 2>/dev/null || echo "No locale.xml found"
-        cp README.md "$PACKAGE_NAME/" 2>/dev/null || echo "No README.md found"
-        cp LICENSE.md "$PACKAGE_NAME/" 2>/dev/null || echo "No LICENSE.md found"
+        cp Name2Chat.toc temp_emergency/Name2Chat/
+        cp ChatCompat.lua temp_emergency/Name2Chat/
+        cp Name2Chat.lua temp_emergency/Name2Chat/
+        cp embeds.xml temp_emergency/Name2Chat/ 2>/dev/null || echo "No embeds.xml found"
+        cp locale.xml temp_emergency/Name2Chat/ 2>/dev/null || echo "No locale.xml found"
+        cp README.md temp_emergency/Name2Chat/ 2>/dev/null || echo "No README.md found"
+        cp LICENSE.md temp_emergency/Name2Chat/ 2>/dev/null || echo "No LICENSE.md found"
         
         # Copy locale directory if it exists
         if [ -d "lang" ]; then
-          cp -r lang "$PACKAGE_NAME/"
+          cp -r lang temp_emergency/Name2Chat/
         fi
         
         # Create ZIP package
-        zip -r "$PACKAGE_NAME.zip" "$PACKAGE_NAME/"
+        cd temp_emergency
+        zip -r "../$PACKAGE_NAME.zip" Name2Chat/
+        cd ..
         
         # Verify package creation
         if [ -f "$PACKAGE_NAME.zip" ]; then

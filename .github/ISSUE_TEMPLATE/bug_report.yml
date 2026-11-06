@@ -1,0 +1,113 @@
+name: 🐛 Bug Report
+description: Report a bug, Lua error, taint/lockdown issue, or chat channel problem in Name2Chat
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report an issue with **Name2Chat**!
+        Please fill out the details below so we can reproduce and fix the issue quickly across the affected World of Warcraft client.
+
+  - type: input
+    id: addon_version
+    attributes:
+      label: Name2Chat Version
+      description: Which version of Name2Chat are you running? (Check in-game AddOn list or CurseForge/Wago client)
+      placeholder: "e.g. 4.1.0"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: wow_flavor
+    attributes:
+      label: World of Warcraft Client / Flavor
+      description: Which World of Warcraft version does this issue occur in?
+      multiple: true
+      options:
+        - "Retail (Midnight / The War Within - 12.x / 11.2.7)"
+        - "Mists of Pandaria Classic (5.5.x)"
+        - "Cataclysm Classic (4.4.x)"
+        - "Wrath of the Lich King Classic / Titan (3.4.x)"
+        - "Burning Crusade Classic / Anniversary (2.5.x)"
+        - "World of Warcraft: Forever (1.60.x / 16001)"
+        - "Classic Era / Hardcore / Season of Discovery (1.15.x)"
+    validations:
+      required: true
+
+  - type: input
+    id: client_build
+    attributes:
+      label: Exact WoW Patch & Client Locale (Optional)
+      description: "Run `/dump GetBuildInfo(), GetLocale()` in-game if unsure"
+      placeholder: "e.g. 12.0.1 (120001), deDE"
+
+  - type: checkboxes
+    id: channels
+    attributes:
+      label: Affected Chat Channel(s)
+      description: Where does the issue happen?
+      options:
+        - label: "Guild Chat (`/g`)"
+        - label: "Officer Chat (`/o`)"
+        - label: "Guild & Communities Window (`J` key)"
+        - label: "Party Chat (`/p`)"
+        - label: "Raid Chat (`/raid` / `/rw`)"
+        - label: "Instance Chat (`/i` - LFR, Battlegrounds, Dungeon Finder)"
+        - label: "Custom Channel (`/1`, `/2`, or custom channel name)"
+        - label: "Slash Commands / Whispers (`/w`, `/reload`, `/n2c`, `!keys`, etc.)"
+        - label: "Received Guild Messages (Guild Note filter)"
+
+  - type: dropdown
+    id: combat_state
+    attributes:
+      label: Combat / Instance Situation
+      description: Does the issue happen in a specific gameplay state?
+      options:
+        - "Out of combat (Open World / City)"
+        - "In normal combat (Open World / Trash)"
+        - "During an active Boss Encounter (Raid / Dungeon)"
+        - "Inside an active Mythic+ Keystone run"
+        - "In PvP (Arena / Battleground)"
+        - "On Login / UI Reload (`/reload`)"
+        - "Always / Not related to combat"
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Describe the Bug
+      description: A clear and concise description of what happens vs. what you expected to happen.
+      placeholder: "When I send a message in ... the name prefix is ..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to Reproduce
+      description: How can we reproduce the problem step by step?
+      value: |
+        1. Configure Name2Chat with ...
+        2. Join / open ...
+        3. Type `...` in chat and press Enter
+        4. See error / unexpected result
+
+  - type: textarea
+    id: debug_log
+    attributes:
+      label: Name2Chat Debug Output & Lua Errors
+      description: |
+        Please enable **Debug** in `/n2c config`, reproduce the issue, and paste the chat debug lines (and any **BugSack / BugGrabber** Lua error stack trace or `ADDON_ACTION_FORBIDDEN` taint message) below:
+      render: text
+      placeholder: |
+        Paste /n2c debug output or Lua error stack trace here...
+
+  - type: textarea
+    id: other_addons
+    attributes:
+      label: Other Chat or UI Addons Installed
+      description: List any other addons that modify chat frames or edit boxes (e.g. Prat 3.0, ElvUI, Chattynator, WIM, Glass, Babel, etc.)
+      placeholder: "e.g. ElvUI, Prat-3.0, WIM, BugSack"
+
