@@ -12,7 +12,7 @@
   [![Wago.io](https://img.shields.io/badge/Wago.io-Name2Chat-c1272d?logo=wagtail&logoColor=white)](https://addons.wago.io/addons/Qb6mWqGP)
   [![WoWInterface](https://img.shields.io/badge/WoWInterface-24357-0078d7)](https://www.wowinterface.com/downloads/info24357-Name2Chat.html)
   [![WoW Versions](https://img.shields.io/badge/WoW-Retail%20%7C%20MoP%20%7C%20Cata%20%7C%20Wrath%20%7C%20TBC%20%7C%20Classic%20%7C%20Forever-f8b700?logo=battle.net&logoColor=white)](#-supported-wow-versions)
-  [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+  [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
   [![Support](https://img.shields.io/badge/Support-donate.goover.dev-ff69b4?logo=ko-fi&logoColor=white)](https://donate.goover.dev)
 </div>
 
@@ -83,4 +83,5 @@ Use `/name2chat` or `/n2c`, or open `ESC -> Options -> AddOns -> Name2Chat`:
 ## 📜 Credits & Support
 
 - **Author**: **gOOvER** ([goover.dev](https://www.goover.dev))
+- **License**: [GNU General Public License v3.0 (GPL-3.0)](LICENSE)
 - **Support Development**: [donate.goover.dev](https://donate.goover.dev) • [Ko-fi](https://ko-fi.com/oldnoob) • [Buy Me a Coffee](https://www.buymeacoffee.com/goover)

@@ -38,3 +38,4 @@ embeds.xml
 ChatCompat.lua
 locale.xml
 Name2Chat.lua
+## X-License: GPL-3.0
