@@ -22,7 +22,7 @@
 ## Author: gOOvER
 ## Version: @project-version@
 ## SavedVariables: Name2ChatDB
-## OptionalDeps: Ace3
+## OptionalDeps: Ace3, ElvUI
 ## AllowAddOnTableAccess: 1
 ## LoadSavedVariablesFirst: 1
 ## X-Website: https://www.goover.dev

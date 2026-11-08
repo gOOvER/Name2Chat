@@ -494,6 +494,23 @@ function Name2Chat:HookChatSendFunction()
 			end
 		end
 
+		-- Also hook FCF_OpenTemporaryWindow so dynamically created temporary chat windows (e.g. via ElvUI or Blizzard) are wrapped
+		if type(_G.FCF_OpenTemporaryWindow) == "function" and type(hooksecurefunc) == "function" then
+			hooksecurefunc("FCF_OpenTemporaryWindow", function()
+				for i = 1, (NUM_CHAT_WINDOWS or 20) do
+					local eb = _G["ChatFrame" .. i .. "EditBox"]
+					if eb and type(eb.SendText) == "function" and not eb._n2cHooked then
+						eb._n2cHooked = true
+						if eb.SendText == origMixinSendText then
+							eb.SendText = wrappedMixinSendText
+						elseif eb.SendText ~= wrappedMixinSendText then
+							eb.SendText = createSendTextWrapper(eb.SendText)
+						end
+					end
+				end
+			end)
+		end
+
 		hookedEditBox = true
 		self:Safe_Print(L["hook_active_mixin"])
 	end
