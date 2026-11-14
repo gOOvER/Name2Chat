@@ -85,3 +85,9 @@ Use `/name2chat` or `/n2c`, or open `ESC -> Options -> AddOns -> Name2Chat`:
 - **Author**: **gOOvER** ([goover.dev](https://www.goover.dev))
 - **License**: [GNU General Public License v3.0 (GPL-3.0)](LICENSE)
 - **Support Development**: [donate.goover.dev](https://donate.goover.dev) • [Ko-fi](https://ko-fi.com/oldnoob) • [Buy Me a Coffee](https://www.buymeacoffee.com/goover)
+
+---
+
+## 🐛 Bug Reports & Feedback
+
+Found a bug or have a feature request? Please report it on the **[GitHub Issue Tracker](https://github.com/gOOvER/Name2Chat/issues)** (please include your WoW client version, addon version, and any Lua errors if available).
